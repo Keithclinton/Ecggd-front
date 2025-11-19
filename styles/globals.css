@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-primary: #0b4da2; /* Blue (approx) */
+  --brand-secondary: #ffd200; /* Yellow */
+  --brand-sky: #87ceeb; /* Sky blue */
+}
+
+body {
+  @apply bg-white text-gray-900 font-sans;
+}
+
+.header-logo {
+  width: 48px;
+  height: 48px;
+}
