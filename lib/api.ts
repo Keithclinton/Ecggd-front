@@ -1,4 +1,4 @@
-// File: ./lib/api.ts (FINAL CORRECTED VERSION)
+// File: ./lib/api.ts (FINAL CORRECTED VERSION with quizzes and attempts)
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getSlidingToken, setSlidingToken, clearSlidingToken } from './auth';
@@ -129,15 +129,26 @@ export const submissions = {
     submit: (courseId: string | number, assignmentId: number, payload: any) => api.post(`/courses/${courseId}/assignments/${assignmentId}/submissions/`, payload),
 };
 
-// 🌟 FIX APPLIED: Added the missing lessons export
 export const lessons = {
     list: (courseId: string | number) => api.get(`/courses/${courseId}/lessons/`),
     detail: (courseId: string | number, lessonId: string | number) => api.get(`/courses/${courseId}/lessons/${lessonId}/`),
 };
 
-// 🌟 FIX APPLIED: Added the missing resources export
 export const resources = {
     list: (lessonId: string | number) => api.get(`/lessons/${lessonId}/resources/`),
+};
+
+// 🌟 FIX APPLIED: Added the missing quizzes export
+export const quizzes = {
+    list: (courseId: string | number) => api.get(`/courses/${courseId}/quizzes/`),
+    detail: (quizId: string | number) => api.get(`/quizzes/${quizId}/`),
+};
+
+// 🌟 FIX APPLIED: Added the missing attempts export
+export const attempts = {
+    list: (quizId: string | number) => api.get(`/quizzes/${quizId}/attempts/`),
+    detail: (attemptId: string | number) => api.get(`/attempts/${attemptId}/`),
+    submit: (attemptId: string | number, payload: any) => api.post(`/attempts/${attemptId}/submit/`, payload),
 };
 
 
