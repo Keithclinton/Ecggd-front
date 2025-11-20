@@ -7,21 +7,21 @@ import { userInitials } from "../lib/helpers";
 export default function Header() {
   let auth: any = null;
 
-  // Safe hook call – avoids SSR issues
+  // Safe hook call
   try {
     auth = useAuth();
-  } catch {
+  } catch (e) {
     auth = null;
   }
 
-  const user = auth?.user || null;
-  const isLoggedIn = !!auth?.access;
+  const user = auth?.user;   // <— SAFE USER VARIABLE
+  const isLoggedIn = Boolean(auth?.access);
 
   return (
     <header className="bg-white shadow">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
 
-        {/* Left: Logo */}
+        {/* LEFT: LOGO */}
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="CCGD" className="header-logo w-10 h-10" />
           <div>
@@ -32,7 +32,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Right: Navigation */}
+        {/* RIGHT NAV */}
         <nav className="flex items-center gap-5 text-sm">
           <Link href="/" className="text-gray-700 hover:text-brand-primary">
             Home
@@ -44,18 +44,14 @@ export default function Header() {
 
           {isLoggedIn ? (
             <>
-              <Link
-                href="/enrollments"
-                className="text-gray-700 hover:text-brand-primary"
-              >
+              <Link href="/enrollments" className="text-gray-700 hover:text-brand-primary">
                 My Courses
               </Link>
 
-              {/* User bubble */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100">
 
-                  {/* Profile picture OR initials */}
+                  {/* --- PROFILE PICTURE OR INITIALS --- */}
                   {user?.profile_picture ? (
                     <img
                       src={user.profile_picture}
@@ -64,7 +60,7 @@ export default function Header() {
                     />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-brand-primary text-white flex items-center justify-center text-xs font-semibold">
-                      {userInitials(user)}
+                      {user ? userInitials(user) : "?"}
                     </div>
                   )}
 
@@ -78,7 +74,7 @@ export default function Header() {
                 </div>
 
                 <button
-                  onClick={() => auth.logout()}
+                  onClick={auth?.logout}
                   className="text-gray-700 hover:text-brand-primary"
                 >
                   Logout
@@ -86,10 +82,7 @@ export default function Header() {
               </div>
             </>
           ) : (
-            <Link
-              href="/login"
-              className="text-gray-700 hover:text-brand-primary"
-            >
+            <Link href="/login" className="text-gray-700 hover:text-brand-primary">
               Login
             </Link>
           )}
