@@ -43,7 +43,7 @@ export default function Header() {
             Courses
           </Link>
 
-          {isLoggedIn && auth ? ( // 👈 ADDED '&& auth' FOR EXTREME SAFETY (Optional)
+                    {isLoggedIn && auth ? ( // 👈 ADDED '&& auth' FOR EXTREME SAFETY (Optional)
             <>
               <Link
                 href="/enrollments"
