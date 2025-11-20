@@ -14,6 +14,7 @@ export default function Header() {
     auth = null;
   }
 
+  // These two lines are safe and well-defined
   const isLoggedIn = !!auth?.access;
   const user = auth?.user || null;
 
@@ -57,7 +58,8 @@ export default function Header() {
                   {/* ---- Avatar ---- */}
                   {user?.profile_picture ? (
                     <img
-                      src={user.profile_picture}
+                      // 🌟 FIX APPLIED HERE: Added ?. for double-safety, although 'user' is already null-checked above
+                      src={user?.profile_picture} 
                       alt="avatar"
                       className="w-8 h-8 rounded-full object-cover"
                     />
@@ -79,7 +81,7 @@ export default function Header() {
 
                 {/* ---- Logout ---- */}
                 <button
-                  onClick={auth?.logout}
+                  onClick={auth?.logout} // This was already safe
                   className="text-gray-700 hover:text-brand-primary"
                 >
                   Logout
