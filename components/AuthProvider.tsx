@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/router'; // NEW IMPORT: Required for redirection logic
+import { useRouter } from 'next/router';
 import {
   setSlidingToken as setSlidingTokenLib,
   clearSlidingToken as clearSlidingTokenLib,
@@ -18,7 +18,7 @@ type UserProfile = {
   address?: string;
   education_level?: string;
   profile_picture?: string;
-  // 🌟 ADDED: Status field for the Student Application check
+  // 🌟 Status field for the Student Application check
   is_application_submitted?: boolean; 
   // Add index signature to allow property access via string
   [key: string]: any; 
@@ -41,9 +41,7 @@ export const useAuth = () => {
 };
 
 // --- GUARD CONSTANTS ---
-// Fields required to consider the profile complete (Matching profile.tsx)
 const PROFILE_REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number'];
-// Paths that must be protected by the profile and application checks
 const PROTECTED_PATHS = ['/courses', '/dashboard', '/']; 
 // -----------------------
 
@@ -84,34 +82,30 @@ const useWorkflowGuard = (user: UserProfile | null, loading: boolean, access: st
 // 🌟 EXPORTABLE GUARD COMPONENTS (for use in protected pages)
 
 export const ProfileRequiredGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // This component relies on useWorkflowGuard running within AuthProvider
     const { user, loading, access } = useAuth();
+    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
     
     // Check if the guard should be blocking rendering (profile check)
     const isProfileIncomplete = user && PROFILE_REQUIRED_FIELDS.some(field => !user[field]);
-    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
+    const shouldBlock = loading || (access && isProfileIncomplete && isProtected);
 
-    // If loading or if profile is incomplete AND current page is protected, show loading state.
-    if (loading || (access && isProfileIncomplete && isProtected)) {
-        return <div className="flex justify-center items-center h-screen">Loading...</div>; // Replace with Spinner
+    if (shouldBlock) {
+        return <div className="flex justify-center items-center h-screen">Loading...</div>;
     }
-
     return <>{children}</>;
 };
 
 export const RequireApplication: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // This component relies on useWorkflowGuard running within AuthProvider
     const { user, loading, access } = useAuth();
+    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
     
     // Check if the guard should be blocking rendering (application check)
     const isAppMissing = user && !user.is_application_submitted;
-    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
+    const shouldBlock = loading || (access && isAppMissing && isProtected);
 
-    // If loading or if application is missing AND current page is protected, show loading state.
-    if (loading || (access && isAppMissing && isProtected)) {
-        return <div className="flex justify-center items-center h-screen">Loading...</div>; // Replace with Spinner
+    if (shouldBlock) {
+        return <div className="flex justify-center items-center h-screen">Loading...</div>;
     }
-
     return <>{children}</>;
 };
 
@@ -125,12 +119,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 🚀 INTEGRATE THE WORKFLOW GUARD HOOK HERE
   useWorkflowGuard(user, loading, access);
 
-  // INITIAL LOAD + REFRESH (Added placeholder for application check)
+  // INITIAL LOAD + REFRESH
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     async function loadFromLocal() {
-      // ... (Existing loadFromLocal logic) ...
+      try {
+        const token = getSlidingTokenLib();
+        if (token) {
+          setAccess(token);
+          setSlidingTokenLib(token);
+
+          // 🌟 FIX: Using 'token' in loadFromLocal
+          const ur = await fetch('/api/proxy/users/me', { 
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (ur.ok) setUser(await ur.json());
+        }
+      } catch {}
     }
 
     async function refreshSession() {
@@ -138,7 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const resp = await fetch('/api/auth/refresh', { method: 'POST' });
 
         if (resp.status === 401) {
-          // ... (Existing 401 handling) ...
+          clearSlidingTokenLib();
+          setAccess(null);
+          setUser(null);
+          setLoading(false);
           return;
         }
 
@@ -164,8 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
                 if (appResp.ok) {
                     const appData = await appResp.json();
-                    // Assumes your API returns a status that indicates submission (e.g., status property exists)
-                    // If the endpoint returns 200/OK, assume submitted. Adjust based on your API response.
+                    // Assumes a successful response means the application is submitted
                     userData = { ...userData, is_application_submitted: appData.status === 'submitted' || appData.id };
                 }
                 
@@ -196,13 +204,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // LOGIN (Must also include the application status check after successful login)
+  // LOGIN
   async function login(username: string, password: string) {
-    // ... (Existing login setup) ...
+    setLoading(true);
+    setUser(null);
+    setAccess(null);
+
     try {
-      // ... (Existing login fetch and token setting) ...
-      // ... (Existing user/me fetch) ...
-      
+      const resp = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => null);
+        throw new Error(err?.detail || 'Invalid login credentials');
+      }
+
+      const data = await resp.json();
+      const newAccess = data.access;
+
+      if (!newAccess) throw new Error('Login did not return access token');
+
+      setAccess(newAccess);
+      setSlidingTokenLib(newAccess);
+
       const ur = await fetch('/api/proxy/users/me', {
         headers: { Authorization: `Bearer ${newAccess}` }
       });
@@ -223,13 +250,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(userData);
       }
     } catch (e: any) {
-      // ... (Existing error handling) ...
+      setUser(null);
+      throw new Error(e?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
   }
 
-  // ... (Existing logout function) ...
+  async function logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+
+    setAccess(null);
+    setUser(null);
+    clearSlidingTokenLib();
+  }
 
   return (
     <AuthContext.Provider value={{ access, loading, user, login, logout }}>
