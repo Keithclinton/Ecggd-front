@@ -7,6 +7,8 @@ export function isProfileComplete(user: any) {
     user.profile.date_of_birth,
     user.profile.gender,
     user.profile.address,
+    user.profile.nationality,
+    user.profile.field_of_study,
   ];
   return required.every(Boolean);
 }

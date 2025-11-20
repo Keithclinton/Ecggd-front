@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
-import Header from '../../components/Header'
 import api, { profile as profileApi } from '../../lib/api'
 import { isProfileComplete } from '../../lib/helpers'
 import Spinner from '../../components/Spinner'
@@ -59,7 +58,6 @@ export default function CourseDetail() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
       <main className="flex-1 flex flex-col items-center justify-start px-4 py-12">
         <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg p-8">
           {loading && <Spinner size={24} className="mx-auto my-4" />}
