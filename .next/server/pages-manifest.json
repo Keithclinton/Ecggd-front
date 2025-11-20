@@ -4,7 +4,9 @@
   "/_document": "pages/_document.js",
   "/dashboard": "pages/dashboard.js",
   "/login": "pages/login.js",
-  "/register": "pages/register.js",
+  "/courses": "pages/courses.js",
   "/api/proxy/[...path]": "pages/api/proxy/[...path].js",
+  "/api/auth/refresh": "pages/api/auth/refresh.js",
+  "/enrollments": "pages/enrollments.js",
   "/profile": "pages/profile.js"
 }

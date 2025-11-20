@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
@@ -119,7 +120,7 @@ export default function StudentApplication() {
         </button>
 
         <div className="text-center mt-4">
-          <a href="/login" className="text-brand-primary hover:underline">Already have an account? Login</a>
+          <Link href="/login" className="text-brand-primary hover:underline">Already have an account? Login</Link>
         </div>
       </form>
     </div>

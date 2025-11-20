@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/router'
 import api from '../lib/api'
@@ -80,7 +81,7 @@ export default function Register() {
           </button>
         </form>
         <div className="mt-6 text-center">
-          <a href="/login" className="text-brand-primary hover:underline font-medium">Already have an account? Login</a>
+          <Link href="/login" className="text-brand-primary hover:underline font-medium">Already have an account? Login</Link>
         </div>
       </div>
     </div>

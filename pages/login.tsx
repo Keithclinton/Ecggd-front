@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { useState, useMemo } from 'react';
 import Header from '../components/Header';
 import { useRouter } from 'next/router';
@@ -98,12 +99,12 @@ export default function Login() {
           </button>
         </form>
         <div className="mt-6 text-center">
-          <a
+          <Link
             href="/register"
             className="text-brand-primary hover:underline font-medium"
           >
             Don't have an account? Register
-          </a>
+          </Link>
         </div>
       </div>
     </div>
