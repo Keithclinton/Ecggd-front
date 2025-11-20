@@ -1,4 +1,4 @@
-// File: ./lib/api.ts (FINAL, COMPLETE VERSION with messages and notifications)
+// File: ./lib/api.ts (FINAL, COMPLETE VERSION)
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getSlidingToken, setSlidingToken, clearSlidingToken } from './auth';
@@ -150,16 +150,32 @@ export const attempts = {
     start: (quizId: string | number) => api.post(`/quizzes/${quizId}/attempts/start/`),
 };
 
-// 🌟 FIX APPLIED: Added the missing messages export
 export const messages = {
     list: () => api.get('/messages/'),
     send: (payload: any) => api.post('/messages/', payload),
 };
 
-// 🌟 FIX APPLIED: Added the missing notifications export
 export const notifications = {
     list: () => api.get('/notifications/'),
     markRead: (id: string | number) => api.post(`/notifications/${id}/mark_read/`),
+};
+
+// 🌟 FINAL FIX: Added the missing password export
+export const password = {
+    change: (payload: any) => api.post('/users/me/change_password/', payload), 
+};
+
+// 🌟 FINAL FIX: Added the missing upload export
+export const upload = {
+    file: (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return api.post('/uploads/file/', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+    },
 };
 
 
