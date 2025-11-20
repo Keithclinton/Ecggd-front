@@ -7,21 +7,21 @@ import { userInitials } from "../lib/helpers";
 export default function Header() {
   let auth: any = null;
 
-  // Safe hook call
+  // safe hook usage
   try {
     auth = useAuth();
   } catch (e) {
     auth = null;
   }
 
-  const user = auth?.user;   // <— SAFE USER VARIABLE
-  const isLoggedIn = Boolean(auth?.access);
+  const isLoggedIn = !!auth?.access;
+  const user = auth?.user || null;
 
   return (
     <header className="bg-white shadow">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
 
-        {/* LEFT: LOGO */}
+        {/* ---- LEFT: LOGO ---- */}
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="CCGD" className="header-logo w-10 h-10" />
           <div>
@@ -32,7 +32,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* RIGHT NAV */}
+        {/* ---- RIGHT NAVIGATION ---- */}
         <nav className="flex items-center gap-5 text-sm">
           <Link href="/" className="text-gray-700 hover:text-brand-primary">
             Home
@@ -44,14 +44,17 @@ export default function Header() {
 
           {isLoggedIn ? (
             <>
-              <Link href="/enrollments" className="text-gray-700 hover:text-brand-primary">
+              <Link
+                href="/enrollments"
+                className="text-gray-700 hover:text-brand-primary"
+              >
                 My Courses
               </Link>
 
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100">
 
-                  {/* --- PROFILE PICTURE OR INITIALS --- */}
+                  {/* ---- Avatar ---- */}
                   {user?.profile_picture ? (
                     <img
                       src={user.profile_picture}
@@ -60,10 +63,11 @@ export default function Header() {
                     />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-brand-primary text-white flex items-center justify-center text-xs font-semibold">
-                      {user ? userInitials(user) : "?"}
+                      {user ? userInitials(user) : ""}
                     </div>
                   )}
 
+                  {/* ---- User Name ---- */}
                   <div className="text-sm">
                     <div className="font-medium text-gray-800">
                       {user?.first_name
@@ -73,6 +77,7 @@ export default function Header() {
                   </div>
                 </div>
 
+                {/* ---- Logout ---- */}
                 <button
                   onClick={auth?.logout}
                   className="text-gray-700 hover:text-brand-primary"
