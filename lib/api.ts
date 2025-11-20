@@ -122,4 +122,11 @@ export const assignments = {
   submit: (payload: any) => api.post('/submissions/', payload),
 };
 
+export const upload = {
+  file: (formData: FormData) => api.post('/files/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+};
+
 export default api;
+

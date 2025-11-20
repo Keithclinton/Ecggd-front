@@ -2,10 +2,12 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/enrollments": "pages/enrollments.js",
   "/dashboard": "pages/dashboard.js",
-  "/profile": "pages/profile.js",
-  "/api/auth/refresh": "pages/api/auth/refresh.js",
   "/api/proxy/[...path]": "pages/api/proxy/[...path].js",
-  "/courses": "pages/courses.js"
+  "/profile": "pages/profile.js",
+  "/api/auth/logout": "pages/api/auth/logout.js",
+  "/login": "pages/login.js",
+  "/api/auth/login": "pages/api/auth/login.js",
+  "/courses": "pages/courses.js",
+  "/enrollments": "pages/enrollments.js"
 }

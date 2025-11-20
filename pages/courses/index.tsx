@@ -1,28 +1,65 @@
-import { useEffect, useState } from 'react'
-import CourseCard from '../../components/CourseCard'
-import api from '../../lib/api'
-import Spinner from '../../components/Spinner'
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import CourseCard from '../../components/CourseCard';
+import api from '../../lib/api';
+import Spinner from '../../components/Spinner';
+import { useAuth } from '../../components/AuthProvider';
+import { isProfileComplete } from '../../lib/helpers';
 
 type Course = {
-  id: number
-  shortname: string
-  fullname: string
-  summary?: string
-}
+  id: number;
+  shortname: string;
+  fullname: string;
+  summary?: string;
+};
 
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
+  const router = useRouter();
+  const auth = useAuth();
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [enrollingCourseId, setEnrollingCourseId] = useState<number | null>(null);
 
   useEffect(() => {
-    setLoading(true)
+    setLoading(true);
     api.get('/courses/')
       .then((res) => setCourses(res.data || []))
       .catch((err) => setError(err?.response?.data?.detail || err.message || 'Failed to load courses'))
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleEnroll = async (courseId: number) => {
+    if (!auth.access) {
+      router.push(`/login?next=/courses`);
+      return;
+    }
+
+    if (!isProfileComplete(auth.user)) {
+      router.push(`/profile?next=/courses`);
+      return;
+    }
+
+    setEnrollingCourseId(courseId);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.post('/enrollments/', {
+        course: courseId,
+        user: auth.user?.id,
+        role: 'student'
+      });
+      setSuccess(`Successfully enrolled in course #${courseId}!`);
+    } catch (err: any) {
+      const errMsg = err.response?.data?.non_field_errors?.[0] || err.message || 'Enrollment failed.';
+      setError(errMsg);
+    } finally {
+      setEnrollingCourseId(null);
+    }
+  };
 
   const filteredCourses = courses.filter(course =>
     course.fullname.toLowerCase().includes(searchTerm.toLowerCase())
@@ -53,6 +90,7 @@ export default function CoursesPage() {
             </div>
           )}
           {error && <div className="text-red-600 text-center font-medium py-3 bg-red-100 border border-red-200 rounded-lg mb-4">{String(error)}</div>}
+          {success && <div className="text-green-600 text-center font-medium py-3 bg-green-100 border border-green-200 rounded-lg mb-4">{success}</div>}
           
           {!loading && !error && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -62,6 +100,8 @@ export default function CoursesPage() {
                   id={course.id}
                   title={course.fullname}
                   summary={course.summary}
+                  onEnroll={handleEnroll}
+                  enrolling={enrollingCourseId === course.id}
                 />
               ))}
             </div>
