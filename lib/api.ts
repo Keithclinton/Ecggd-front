@@ -1,4 +1,4 @@
-// File: ./lib/api.ts (FINAL CORRECTED VERSION with quizzes and attempts)
+// File: ./lib/api.ts (FINAL, COMPLETE VERSION)
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getSlidingToken, setSlidingToken, clearSlidingToken } from './auth';
@@ -138,17 +138,17 @@ export const resources = {
     list: (lessonId: string | number) => api.get(`/lessons/${lessonId}/resources/`),
 };
 
-// 🌟 FIX APPLIED: Added the missing quizzes export
 export const quizzes = {
     list: (courseId: string | number) => api.get(`/courses/${courseId}/quizzes/`),
     detail: (quizId: string | number) => api.get(`/quizzes/${quizId}/`),
 };
 
-// 🌟 FIX APPLIED: Added the missing attempts export
 export const attempts = {
     list: (quizId: string | number) => api.get(`/quizzes/${quizId}/attempts/`),
     detail: (attemptId: string | number) => api.get(`/attempts/${attemptId}/`),
     submit: (attemptId: string | number, payload: any) => api.post(`/attempts/${attemptId}/submit/`, payload),
+    // 🌟 FINAL FIX: Added the missing start method
+    start: (quizId: string | number) => api.post(`/quizzes/${quizId}/attempts/start/`),
 };
 
 
