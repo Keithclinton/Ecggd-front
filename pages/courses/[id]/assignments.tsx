@@ -1,11 +1,10 @@
-// File: ./pages/courses/[id]/assignments.tsx (Final Corrected Code)
+// File: ./pages/courses/[id]/assignments.tsx
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 
-// FIX: Corrected import structure (submissions as default, assignments as named)
-import { assignments } from '../../../lib/api'; 
-import submissions from '../../../lib/api'; 
+// ✅ FINAL FIX: Import both assignments and submissions as NAMED exports.
+import { assignments, submissions } from '../../../lib/api'; 
 import RequireAuth from '../../../components/RequireAuth';
 
 interface Assignment {
@@ -36,8 +35,7 @@ export default function AssignmentsPage() {
     useEffect(() => {
         if (id) {
             setLoading(true);
-            // 🌟 FINAL FIX APPLIED (Line 38): Removed 'id as string' argument
-            // The API definition (lib/api.ts) shows assignments.list() takes 0 arguments.
+            // ✅ FIX: Removed 'id as string' argument to match the API definition (lib/api.ts).
             assignments.list() 
                 .then((res: { data: Assignment[] }) => setAssignmentList(res.data))
                 .finally(() => setLoading(false));
