@@ -1,4 +1,4 @@
-// File: ./lib/api.ts
+// File: ./lib/api.ts (FINAL CORRECTED VERSION)
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getSlidingToken, setSlidingToken, clearSlidingToken } from './auth';
@@ -124,10 +124,20 @@ export const assignments = {
     submit: (payload: any) => api.post('/submissions/', payload),
 };
 
-// 🌟 FIX APPLIED: Added the missing submissions export structure
 export const submissions = {
     list: (courseId: string | number, assignmentId: number) => api.get(`/courses/${courseId}/assignments/${assignmentId}/submissions/`),
     submit: (courseId: string | number, assignmentId: number, payload: any) => api.post(`/courses/${courseId}/assignments/${assignmentId}/submissions/`, payload),
+};
+
+// 🌟 FIX APPLIED: Added the missing lessons export
+export const lessons = {
+    list: (courseId: string | number) => api.get(`/courses/${courseId}/lessons/`),
+    detail: (courseId: string | number, lessonId: string | number) => api.get(`/courses/${courseId}/lessons/${lessonId}/`),
+};
+
+// 🌟 FIX APPLIED: Added the missing resources export
+export const resources = {
+    list: (lessonId: string | number) => api.get(`/lessons/${lessonId}/resources/`),
 };
 
 
