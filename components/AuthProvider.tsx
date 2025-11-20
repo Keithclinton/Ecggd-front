@@ -49,9 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const token = getSlidingTokenLib();
         if (token) {
           setAccess(token);
-          setSlidingTokenLib(token);
 
-          const ur = await fetch('/api/proxy/users/me', {
+          const ur = await fetch('/api/proxy/users/me/', {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (ur.ok) setUser(await ur.json());
@@ -61,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     async function refreshSession() {
       try {
-        const resp = await fetch('/api/auth/refresh', { method: 'POST' });
+        const resp = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
 
         if (resp.status === 401) {
           setLoading(false);
@@ -76,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAccess(newAccess);
             setSlidingTokenLib(newAccess);
 
-            const ur = await fetch('/api/proxy/users/me', {
+            const ur = await fetch('/api/proxy/users/me/', {
               headers: { Authorization: `Bearer ${newAccess}` }
             });
 
@@ -132,11 +131,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAccess(newAccess);
       setSlidingTokenLib(newAccess);
 
-      const ur = await fetch('/api/proxy/users/me', {
+      // Fetch user profile after getting token
+      const ur = await fetch('/api/proxy/users/me/', {
         headers: { Authorization: `Bearer ${newAccess}` }
       });
-
-      if (ur.ok) setUser(await ur.json());
+      if (ur.ok) {
+        setUser(await ur.json());
+      }
     } catch (e: any) {
       setUser(null);
       throw new Error(e?.message || 'Login failed');

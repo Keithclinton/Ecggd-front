@@ -108,7 +108,7 @@ export const auth = {
 
 export const profile = {
   get: () => api.get('/users/me/'),
-  update: (payload: any) => api.put('/users/me/', payload),
+  update: (id: number, payload: any) => api.patch(`/users/${id}/`, payload),
 };
 
 export const courses = {

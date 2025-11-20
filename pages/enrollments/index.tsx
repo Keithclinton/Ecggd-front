@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import Header from '../../components/Header'
 import RequireAuth from '../../components/RequireAuth'
 import api from '../../lib/api'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { profile as profileApi } from '../../lib/api'
+import { isProfileComplete } from '../../lib/helpers'
 
 export default function EnrollmentsPage() {
   const router = useRouter()
@@ -19,10 +19,8 @@ export default function EnrollmentsPage() {
       try {
         // Ensure profile completeness before allowing enrollments view
         const me = await profileApi.get()
-        const u = me?.data || {}
-        const required = [u.first_name, u.last_name, u.phone_number, u.date_of_birth, u.gender, u.address]
-        const complete = required.every(Boolean)
-        if (!complete) {
+        const user = me?.data || {}
+        if (!isProfileComplete(user)) {
           router.replace('/profile?next=/enrollments')
           return
         }
@@ -49,7 +47,6 @@ export default function EnrollmentsPage() {
   return (
     <RequireAuth>
       <div className="min-h-screen flex flex-col">
-        <Header />
         <main className="container mx-auto px-4 py-12">
           <h1 className="text-2xl font-semibold mb-6">My Courses</h1>
           {loading && <div>Loading enrollments...</div>}

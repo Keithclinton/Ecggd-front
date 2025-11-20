@@ -1,12 +1,12 @@
 export function isProfileComplete(user: any) {
-  if (!user) return false;
+  if (!user || !user.profile) return false;
   const required = [
     user.first_name,
     user.last_name,
-    user.phone_number,
-    user.date_of_birth,
-    user.gender,
-    user.address,
+    user.phone,
+    user.profile.date_of_birth,
+    user.profile.gender,
+    user.profile.address,
   ];
   return required.every(Boolean);
 }

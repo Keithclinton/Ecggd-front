@@ -1,13 +1,24 @@
+import Link from 'next/link';
+
 type Props = {
-  title: string
-  description?: string
+  id: number;
+  title: string;
+  summary?: string;
+  imageUrl?: string;
 }
 
-export default function CourseCard({ title, description }: Props) {
+export default function CourseCard({ id, title, summary, imageUrl }: Props) {
+  const placeholderImage = `https://placehold.co/600x400/e2e8f0/4a5568?text=Course`;
+
   return (
-    <div className="border rounded p-4 shadow-sm">
-      <h3 className="text-lg font-semibold">{title}</h3>
-      {description && <p className="text-sm text-gray-600 mt-2">{description}</p>}
-    </div>
+    <Link href={`/courses/${id}`}>
+      <a className="block bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full">
+        <img src={imageUrl || placeholderImage} alt={title} className="w-full h-48 object-cover" />
+        <div className="p-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-2">{title}</h3>
+          {summary && <p className="text-gray-600 text-sm mb-4">{summary}</p>}
+        </div>
+      </a>
+    </Link>
   )
 }

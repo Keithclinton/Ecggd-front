@@ -31,17 +31,12 @@ export default function Register() {
         phone
       })
       // Auto-login then take student to Profile Setup as per workflow
-      try {
-        await auth.login(username, password)
-        setSuccess('Registration successful! Redirecting to profile setup...')
-        setTimeout(() => router.push('/profile'), 800)
-      } catch {
-        // Fallback to login with next to profile
-        setSuccess('Registration successful! Please log in to complete your profile.')
-        setTimeout(() => router.push('/login?next=/profile'), 1200)
-      }
+      await auth.login(username, password)
+      setSuccess('Registration successful! Redirecting to profile setup...')
+      setTimeout(() => router.push('/profile'), 800)
     } catch (err: any) {
-      setError(err?.response?.data || err.message || 'Registration failed')
+      const msg = err.response?.data ? JSON.stringify(err.response.data) : (err.message || 'Registration failed');
+      setError(msg);
     } finally {
       setLoading(false)
     }
