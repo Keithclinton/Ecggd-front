@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-// 🌟 FIX APPLIED HERE: Changed the combined import to separate named (assignments) and default (submissions) imports
+//  FIX APPLIED HERE: Changed the combined import to separate named (assignments) and default (submissions) imports
 import { assignments } from '../../../lib/api'; 
 import submissions from '../../../lib/api'; 
 import RequireAuth from '../../../components/RequireAuth';
