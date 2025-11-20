@@ -5,21 +5,23 @@ import { useAuth } from "./AuthProvider";
 import { userInitials } from "../lib/helpers";
 
 export default function Header() {
-  let auth = null;
+  let auth: any = null;
 
-  // Safe hook call (only runs client-side because of "use client")
+  // Safe hook call – avoids SSR issues
   try {
     auth = useAuth();
-  } catch (e) {
-    auth = null; // During SSR or provider missing
+  } catch {
+    auth = null;
   }
 
-  const isLoggedIn = auth?.access;
+  const user = auth?.user || null;
+  const isLoggedIn = !!auth?.access;
 
   return (
     <header className="bg-white shadow">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* -------- Left: Logo -------- */}
+
+        {/* Left: Logo */}
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="CCGD" className="header-logo w-10 h-10" />
           <div>
@@ -30,7 +32,7 @@ export default function Header() {
           </div>
         </div>
 
-        {/* -------- Right: Navigation -------- */}
+        {/* Right: Navigation */}
         <nav className="flex items-center gap-5 text-sm">
           <Link href="/" className="text-gray-700 hover:text-brand-primary">
             Home
@@ -42,28 +44,41 @@ export default function Header() {
 
           {isLoggedIn ? (
             <>
-              <Link href="/enrollments" className="text-gray-700 hover:text-brand-primary">
+              <Link
+                href="/enrollments"
+                className="text-gray-700 hover:text-brand-primary"
+              >
                 My Courses
               </Link>
 
+              {/* User bubble */}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100">
-                  {auth.user?.profile_picture ? (
-                    // show image if available
-                    // using img instead of next/image for simplicity inside header
-                    <img src={auth.user.profile_picture} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+
+                  {/* Profile picture OR initials */}
+                  {user?.profile_picture ? (
+                    <img
+                      src={user.profile_picture}
+                      alt="avatar"
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-brand-primary text-white flex items-center justify-center text-xs font-semibold">
-                      {userInitials(auth.user)}
+                      {userInitials(user)}
                     </div>
                   )}
+
                   <div className="text-sm">
-                    <div className="font-medium text-gray-800">{auth.user?.first_name ? `${auth.user.first_name} ${auth.user.last_name || ''}` : 'Profile'}</div>
+                    <div className="font-medium text-gray-800">
+                      {user?.first_name
+                        ? `${user.first_name} ${user.last_name || ""}`
+                        : "Profile"}
+                    </div>
                   </div>
                 </div>
 
                 <button
-                  onClick={auth.logout}
+                  onClick={() => auth.logout()}
                   className="text-gray-700 hover:text-brand-primary"
                 >
                   Logout
@@ -71,7 +86,10 @@ export default function Header() {
               </div>
             </>
           ) : (
-            <Link href="/login" className="text-gray-700 hover:text-brand-primary">
+            <Link
+              href="/login"
+              className="text-gray-700 hover:text-brand-primary"
+            >
               Login
             </Link>
           )}
