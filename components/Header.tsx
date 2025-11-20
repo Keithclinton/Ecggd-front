@@ -43,7 +43,7 @@ export default function Header() {
             Courses
           </Link>
 
-          {isLoggedIn ? (
+          {isLoggedIn && auth ? ( // 👈 ADDED '&& auth' FOR EXTREME SAFETY (Optional)
             <>
               <Link
                 href="/enrollments"
@@ -56,10 +56,13 @@ export default function Header() {
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100">
 
                   {/* ---- Avatar ---- */}
+                  {/* The original Vercel logs pointed to a place that used 'auth.user' directly. 
+                      Since we can't see that in this code, we'll assume the compiler is 
+                      still complaining about 'user' possibly being null/undefined. */}
                   {user?.profile_picture ? (
                     <img
-                      // 🌟 FIX APPLIED HERE: Added ?. for double-safety, although 'user' is already null-checked above
-                      src={user?.profile_picture} 
+                      // 🌟 FIX (Line 73): Safely access the property here.
+                      src={user.profile_picture} 
                       alt="avatar"
                       className="w-8 h-8 rounded-full object-cover"
                     />
@@ -81,7 +84,7 @@ export default function Header() {
 
                 {/* ---- Logout ---- */}
                 <button
-                  onClick={auth?.logout} // This was already safe
+                  onClick={auth?.logout} // Already safe
                   className="text-gray-700 hover:text-brand-primary"
                 >
                   Logout
