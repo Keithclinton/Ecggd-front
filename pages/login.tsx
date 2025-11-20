@@ -1,5 +1,5 @@
+import Link from 'next/link';
 import { useState, useMemo } from 'react';
-import Header from '../components/Header';
 import { useRouter } from 'next/router';
 import Spinner from '../components/Spinner';
 import { useAuth } from '../components/AuthProvider';
@@ -37,7 +37,6 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
-        <Header />
         <h1 className="text-3xl font-bold text-brand-primary mb-6 text-center">
           Login to CCGD LMS
         </h1>
@@ -98,12 +97,12 @@ export default function Login() {
           </button>
         </form>
         <div className="mt-6 text-center">
-          <a
+          <Link
             href="/register"
             className="text-brand-primary hover:underline font-medium"
           >
             Don't have an account? Register
-          </a>
+          </Link>
         </div>
       </div>
     </div>

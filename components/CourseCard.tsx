@@ -21,13 +21,11 @@ export default function CourseCard({ id, title, summary, imageUrl, onEnroll, enr
   return (
     <div className="block bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full flex flex-col">
       <Link href={`/courses/${id}`}>
-        <a>
           <img src={imageUrl || placeholderImage} alt={title} className="w-full h-48 object-cover" />
           <div className="p-6">
             <h3 className="text-xl font-bold text-gray-800 mb-2">{title}</h3>
             {summary && <p className="text-gray-600 text-sm mb-4">{summary}</p>}
           </div>
-        </a>
       </Link>
       <div className="mt-auto p-6 pt-0">
         <button

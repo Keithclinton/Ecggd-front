@@ -109,6 +109,9 @@ export const auth = {
 export const profile = {
   get: () => api.get('/users/me/'),
   update: (id: number, payload: any) => api.patch(`/users/${id}/`, payload),
+  updateWithFiles: (id: number, formData: FormData) => api.patch(`/users/${id}/`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 export const courses = {

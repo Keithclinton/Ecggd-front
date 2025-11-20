@@ -11,6 +11,12 @@ interface UserProfileData {
   address?: string;
   qualification_level?: string;
   profile_picture?: string;
+  nationality?: string;
+  field_of_study?: string;
+  passport_photo?: string;
+  national_id?: string;
+  passport?: string;
+  academic_certificate?: string;
 }
 
 interface UserProfile {
@@ -37,7 +43,8 @@ export default function ProfilePage() {
   const [pwForm, setPwForm] = useState({ old_password: '', new_password: '' });
   const [pwSuccess, setPwSuccess] = useState('');
   const [pwError, setPwError] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [fileForm, setFileForm] = useState<Record<string, File | null>>({});
+
 
   useEffect(() => {
     setLoading(true);
@@ -63,10 +70,35 @@ export default function ProfilePage() {
     setError('');
     setSuccess('');
     try {
-      if (!user || !user.id) {
-        throw new Error('User not loaded, cannot update.');
+      if (!user || !user.id || !form.profile) {
+        throw new Error('User or profile data not loaded, cannot update.');
       }
-      await profile.update(user.id, form);
+
+      const formData = new FormData();
+      // Append user fields
+      if (form.first_name) formData.append('first_name', form.first_name);
+      if (form.last_name) formData.append('last_name', form.last_name);
+      if (form.email) formData.append('email', form.email);
+      if (form.phone) formData.append('phone', form.phone);
+      if (form.timezone) formData.append('timezone', form.timezone);
+      if (form.institution) formData.append('institution', form.institution);
+
+      // Append profile fields
+      if (form.profile.date_of_birth) formData.append('profile.date_of_birth', form.profile.date_of_birth);
+      if (form.profile.gender) formData.append('profile.gender', form.profile.gender);
+      if (form.profile.address) formData.append('profile.address', form.profile.address);
+      if (form.profile.qualification_level) formData.append('profile.qualification_level', form.profile.qualification_level);
+      if (form.profile.field_of_study) formData.append('profile.field_of_study', form.profile.field_of_study);
+      if (form.profile.nationality) formData.append('profile.nationality', form.profile.nationality);
+      
+      // Append files
+      if (fileForm.profile_picture) formData.append('profile.profile_picture', fileForm.profile_picture);
+      if (fileForm.passport_photo) formData.append('profile.passport_photo', fileForm.passport_photo);
+      if (fileForm.national_id) formData.append('profile.national_id', fileForm.national_id);
+      if (fileForm.passport) formData.append('profile.passport', fileForm.passport);
+      if (fileForm.academic_certificate) formData.append('profile.academic_certificate', fileForm.academic_certificate);
+
+      await profile.updateWithFiles(user.id, formData);
       setSuccess('Profile updated successfully!');
       setEditMode(false);
       // Re-fetch user data to update the view
@@ -99,6 +131,10 @@ export default function ProfilePage() {
       },
     }));
   };
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+    const file = e.target.files?.[0] || null;
+    setFileForm(f => ({ ...f, [fieldName]: file }));
+  };
 
   const handleChangePassword = async () => {
     setPwError('');
@@ -130,6 +166,8 @@ export default function ProfilePage() {
             <div><strong>Gender:</strong> {user.profile?.gender || '-'}</div>
             <div><strong>Address:</strong> {user.profile?.address || '-'}</div>
             <div><strong>Education Level:</strong> {user.profile?.qualification_level || '-'}</div>
+            <div><strong>Field of Study:</strong> {user.profile?.field_of_study || '-'}</div>
+            <div><strong>Nationality:</strong> {user.profile?.nationality || '-'}</div>
             <div><strong>Timezone:</strong> {user.timezone || '-'}</div>
             <div><strong>Institution:</strong> {user.institution || '-'}</div>
             {user.profile?.profile_picture && (
@@ -137,6 +175,10 @@ export default function ProfilePage() {
                 <img src={user.profile.profile_picture} alt="Profile" className="w-20 h-20 rounded-full border" />
               </div>
             )}
+            <div><strong>Passport Photo:</strong> {user.profile?.passport_photo ? <a href={user.profile.passport_photo} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View</a> : '-'}</div>
+            <div><strong>National ID:</strong> {user.profile?.national_id ? <a href={user.profile.national_id} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View</a> : '-'}</div>
+            <div><strong>Passport:</strong> {user.profile?.passport ? <a href={user.profile.passport} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View</a> : '-'}</div>
+            <div><strong>Academic Certificate:</strong> {user.profile?.academic_certificate ? <a href={user.profile.academic_certificate} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View</a> : '-'}</div>
             <button className="mt-4 px-4 py-2 rounded bg-blue-600 text-white" onClick={() => setEditMode(true)}>Edit Profile</button>
           </div>
         )}
@@ -168,6 +210,13 @@ export default function ProfilePage() {
               value={form.profile?.qualification_level || ''}
               onChange={e => setForm(f => ({ ...f, profile: { ...f.profile, qualification_level: e.target.value } }))}
             />
+            <label className="block mb-1">Field of Study (optional)</label>
+            <input name="field_of_study" className="w-full border rounded p-2 mb-2" value={form.profile?.field_of_study || ''} onChange={handleProfileChange} />
+            <label className="block mb-1">Nationality</label>
+            <NationalitySelector
+                value={form.profile?.nationality || ''}
+                onChange={e => setForm(f => ({ ...f, profile: { ...f.profile, nationality: e.target.value } }))}
+            />
             <label className="block mb-1">Timezone</label>
             <TimezoneSelector
               value={form.timezone || ''}
@@ -177,30 +226,33 @@ export default function ProfilePage() {
             <input className="w-full border rounded p-2 mb-2" value={form.institution || ''} onChange={e => setForm(f => ({ ...f, institution: e.target.value }))} />
             <label className="block mb-1">Profile Picture (optional)</label>
             <div className="flex items-center gap-3 mb-2">
-              <input type="file" accept="image/*" onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                setUploading(true);
-                try {
-                  const fd = new FormData();
-                  fd.append('file', file);
-                  const res = await upload.file(fd);
-                  const data = res?.data || {};
-                  const url = data.url || data.location || data.path || data.file || '';
-                  if (url) setForm(f => ({ ...f, profile: { ...f.profile, profile_picture: url } }));
-                } catch (e) {
-                  setError('Failed to upload profile picture');
-                } finally {
-                  setUploading(false);
-                }
-              }} />
-              {uploading && <span className="text-sm text-gray-600">Uploading...</span>}
+              <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'profile_picture')} />
             </div>
-            {form.profile?.profile_picture && (
+            {(fileForm.profile_picture || form.profile?.profile_picture) && (
               <div className="mb-2">
-                <img src={form.profile.profile_picture} alt="Preview" className="w-16 h-16 rounded-full border" />
+                <img
+                  src={fileForm.profile_picture ? URL.createObjectURL(fileForm.profile_picture) : form.profile!.profile_picture}
+                  alt="Preview"
+                  className="w-16 h-16 rounded-full border"
+                />
               </div>
             )}
+            <label className="block mb-1">Passport Photo (optional)</label>
+            <div className="flex items-center gap-3 mb-2">
+                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'passport_photo')} />
+            </div>
+            <label className="block mb-1">National ID (optional)</label>
+            <div className="flex items-center gap-3 mb-2">
+                <input type="file" onChange={(e) => handleFileChange(e, 'national_id')} />
+            </div>
+            <label className="block mb-1">Passport (optional)</label>
+            <div className="flex items-center gap-3 mb-2">
+                <input type="file" onChange={(e) => handleFileChange(e, 'passport')} />
+            </div>
+            <label className="block mb-1">Academic Certificate (optional)</label>
+            <div className="flex items-center gap-3 mb-2">
+                <input type="file" onChange={(e) => handleFileChange(e, 'academic_certificate')} />
+            </div>
             <button
               className={`px-4 py-2 rounded mr-2 font-semibold transition flex items-center justify-center gap-3 ${saving ? 'bg-green-600 text-white opacity-60 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
               onClick={handleUpdate}
@@ -269,5 +321,31 @@ function EducationLevelSelector({ value, onChange }: { value: string, onChange: 
       {educationLevels.map(level => <option key={level} value={level}>{level}</option>)}
     </select>
   )
+}
+
+// Nationality selector component
+const nationalities = [
+    "Afghan", "Albanian", "Algerian", "American", "Andorran", "Angolan", "Antiguans", "Argentinean", "Armenian", "Australian",
+    "Austrian", "Azerbaijani", "Bahamian", "Bahraini", "Bangladeshi", "Barbadian", "Barbudans", "Batswana", "Belarusian",
+    "Belgian", "Belizean", "Beninese", "Bhutanese", "Bolivian", "Bosnian", "Brazilian", "British", "Bruneian", "Bulgarian",
+    "Burkinabe", "Burmese", "Burundian", "Cambodian", "Cameroonian", "Canadian", "Cape Verdean", "Central African", "Chadian",
+    "Chilean", "Chinese", "Colombian", "Comoran", "Congolese", "Costa Rican", "Croatian", "Cuban", "Cypriot", "Czech",
+    "Danish", "Djibouti", "Dominican", "Dutch", "East Timorese", "Ecuadorean", "Egyptian", "Emirian", "Equatorial Guinean",
+    "Eritrean", "Estonian", "Ethiopian", "Fijian", "Filipino", "Finnish", "French", "Gabonese", "Gambian", "Georgian",
+    "German", "Ghanaian", "Greek", "Grenadian", "Guatemalan", "Guinea-Bissauan", "Guinean", "Guyanese", "Haitian",
+    "Herzegovinian", "Honduran", "Hungarian", "I-Kiribati", "Icelander", "Indian", "Indonesian", "Iranian", "Iraqi",
+    "Irish", "Israeli", "Italian", "Ivorian", "Jamaican", "Japanese", "Jordanian", "Kazakhstani", "Kenyan",
+    "Kittian and Nevisian", "Kuwaiti", "Kyrgyz", "Laotian", "Latvian", "Lebanese", "Liberian", "Libyan", "Liechtensteiner",
+    "Lithuanian", "Luxembourger", "Macedonian", "Malagasy", "Malawian", "Malaysian", "Maldivan", "Malian", "Maltese",
+
+];
+
+function NationalitySelector({ value, onChange }: { value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void }) {
+    return (
+        <select className="w-full border rounded p-2 mb-2" value={value} onChange={onChange}>
+        <option value="">Select nationality</option>
+        {nationalities.map(nat => <option key={nat} value={nat.toLowerCase()}>{nat}</option>)}
+        </select>
+    )
 }
 
