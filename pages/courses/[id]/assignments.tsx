@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-// 🌟 FIX APPLIED HERE: Submissions is imported as a default, assignments as a named export.
-import submissions from '../../../lib/api';
+// 🌟 FIX APPLIED HERE: Changed the combined import to separate named (assignments) and default (submissions) imports
 import { assignments } from '../../../lib/api'; 
+import submissions from '../../../lib/api'; 
 import RequireAuth from '../../../components/RequireAuth';
 
 interface Assignment {
