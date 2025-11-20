@@ -3,11 +3,8 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/dashboard": "pages/dashboard.js",
-  "/api/proxy/[...path]": "pages/api/proxy/[...path].js",
-  "/profile": "pages/profile.js",
-  "/api/auth/logout": "pages/api/auth/logout.js",
   "/login": "pages/login.js",
-  "/api/auth/login": "pages/api/auth/login.js",
-  "/courses": "pages/courses.js",
-  "/enrollments": "pages/enrollments.js"
+  "/register": "pages/register.js",
+  "/api/proxy/[...path]": "pages/api/proxy/[...path].js",
+  "/profile": "pages/profile.js"
 }
