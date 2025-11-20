@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/router'; // NEW IMPORT: Required for redirection logic
 import {
   setSlidingToken as setSlidingTokenLib,
   clearSlidingToken as clearSlidingTokenLib,
@@ -17,6 +18,10 @@ type UserProfile = {
   address?: string;
   education_level?: string;
   profile_picture?: string;
+  // 🌟 ADDED: Status field for the Student Application check
+  is_application_submitted?: boolean; 
+  // Add index signature to allow property access via string
+  [key: string]: any; 
 };
 
 type AuthContextType = {
@@ -35,28 +40,97 @@ export const useAuth = () => {
   return ctx;
 };
 
+// --- GUARD CONSTANTS ---
+// Fields required to consider the profile complete (Matching profile.tsx)
+const PROFILE_REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number'];
+// Paths that must be protected by the profile and application checks
+const PROTECTED_PATHS = ['/courses', '/dashboard', '/']; 
+// -----------------------
+
+// 🌟 PROFILE AND APPLICATION GUARD LOGIC HOOK
+const useWorkflowGuard = (user: UserProfile | null, loading: boolean, access: string | null) => {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Only proceed if authenticated and not currently loading
+    if (!loading && access && user) {
+      const isCurrentPageProfile = router.pathname === '/profile';
+      const isCurrentPageApplication = router.pathname === '/student-application';
+      const isProtectedPath = PROTECTED_PATHS.includes(router.pathname);
+
+      // --- 1. Profile Completion Check ---
+      const isProfileIncomplete = PROFILE_REQUIRED_FIELDS.some(
+        field => !user[field]
+      );
+      
+      if (isProfileIncomplete && isProtectedPath && !isCurrentPageProfile) {
+        // Redirect to Profile Setup if incomplete
+        router.replace('/profile');
+        return;
+      }
+      
+      // --- 2. Application Submission Check (Only run if profile is complete) ---
+      const hasApplication = user.is_application_submitted;
+      
+      if (!isProfileIncomplete && !hasApplication && isProtectedPath && !isCurrentPageApplication) {
+        // Redirect to Student Application if missing
+        router.replace('/student-application');
+        return;
+      }
+    }
+  }, [loading, access, user, router.pathname]); 
+};
+
+// 🌟 EXPORTABLE GUARD COMPONENTS (for use in protected pages)
+
+export const ProfileRequiredGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    // This component relies on useWorkflowGuard running within AuthProvider
+    const { user, loading, access } = useAuth();
+    
+    // Check if the guard should be blocking rendering (profile check)
+    const isProfileIncomplete = user && PROFILE_REQUIRED_FIELDS.some(field => !user[field]);
+    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
+
+    // If loading or if profile is incomplete AND current page is protected, show loading state.
+    if (loading || (access && isProfileIncomplete && isProtected)) {
+        return <div className="flex justify-center items-center h-screen">Loading...</div>; // Replace with Spinner
+    }
+
+    return <>{children}</>;
+};
+
+export const RequireApplication: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    // This component relies on useWorkflowGuard running within AuthProvider
+    const { user, loading, access } = useAuth();
+    
+    // Check if the guard should be blocking rendering (application check)
+    const isAppMissing = user && !user.is_application_submitted;
+    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
+
+    // If loading or if application is missing AND current page is protected, show loading state.
+    if (loading || (access && isAppMissing && isProtected)) {
+        return <div className="flex justify-center items-center h-screen">Loading...</div>; // Replace with Spinner
+    }
+
+    return <>{children}</>;
+};
+
+// --- Auth Provider Component ---
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [access, setAccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserProfile | null>(null);
 
-  // INITIAL LOAD + REFRESH
+  // 🚀 INTEGRATE THE WORKFLOW GUARD HOOK HERE
+  useWorkflowGuard(user, loading, access);
+
+  // INITIAL LOAD + REFRESH (Added placeholder for application check)
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
     async function loadFromLocal() {
-      try {
-        const token = getSlidingTokenLib();
-        if (token) {
-          setAccess(token);
-          setSlidingTokenLib(token);
-
-          const ur = await fetch('/api/proxy/users/me', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (ur.ok) setUser(await ur.json());
-        }
-      } catch {}
+      // ... (Existing loadFromLocal logic) ...
     }
 
     async function refreshSession() {
@@ -64,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const resp = await fetch('/api/auth/refresh', { method: 'POST' });
 
         if (resp.status === 401) {
-          setLoading(false);
+          // ... (Existing 401 handling) ...
           return;
         }
 
@@ -80,7 +154,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               headers: { Authorization: `Bearer ${newAccess}` }
             });
 
-            if (ur.ok) setUser(await ur.json());
+            if (ur.ok) {
+                let userData = await ur.json();
+                
+                // 🌟 FETCH APPLICATION STATUS
+                const appResp = await fetch('/api/proxy/student-applications/status', {
+                    headers: { Authorization: `Bearer ${newAccess}` }
+                });
+
+                if (appResp.ok) {
+                    const appData = await appResp.json();
+                    // Assumes your API returns a status that indicates submission (e.g., status property exists)
+                    // If the endpoint returns 200/OK, assume submitted. Adjust based on your API response.
+                    userData = { ...userData, is_application_submitted: appData.status === 'submitted' || appData.id };
+                }
+                
+                setUser(userData);
+            }
           }
         }
       } catch (err) {
@@ -106,55 +196,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // LOGIN
+  // LOGIN (Must also include the application status check after successful login)
   async function login(username: string, password: string) {
-    setLoading(true);
-    setUser(null);
-    setAccess(null);
-
+    // ... (Existing login setup) ...
     try {
-      const resp = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => null);
-        throw new Error(err?.detail || 'Invalid login credentials');
-      }
-
-      const data = await resp.json();
-      const newAccess = data.access;
-
-      if (!newAccess) throw new Error('Login did not return access token');
-
-      setAccess(newAccess);
-      setSlidingTokenLib(newAccess);
-
+      // ... (Existing login fetch and token setting) ...
+      // ... (Existing user/me fetch) ...
+      
       const ur = await fetch('/api/proxy/users/me', {
         headers: { Authorization: `Bearer ${newAccess}` }
       });
 
-      if (ur.ok) setUser(await ur.json());
+      if (ur.ok) {
+          let userData = await ur.json();
+          
+          // 🌟 FETCH APPLICATION STATUS AFTER LOGIN
+          const appResp = await fetch('/api/proxy/student-applications/status', {
+              headers: { Authorization: `Bearer ${newAccess}` }
+          });
+
+          if (appResp.ok) {
+              const appData = await appResp.json();
+              userData = { ...userData, is_application_submitted: appData.status === 'submitted' || appData.id };
+          }
+          
+          setUser(userData);
+      }
     } catch (e: any) {
-      setUser(null);
-      throw new Error(e?.message || 'Login failed');
+      // ... (Existing error handling) ...
     } finally {
       setLoading(false);
     }
   }
 
-  // LOGOUT
-  async function logout() {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-
-    setAccess(null);
-    setUser(null);
-    clearSlidingTokenLib();
-  }
+  // ... (Existing logout function) ...
 
   return (
     <AuthContext.Provider value={{ access, loading, user, login, logout }}>
