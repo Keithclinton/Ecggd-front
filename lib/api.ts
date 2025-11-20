@@ -1,4 +1,4 @@
-// File: ./lib/api.ts (FINAL, COMPLETE VERSION)
+// File: ./lib/api.ts (FINAL, COMPLETE VERSION with messages and notifications)
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getSlidingToken, setSlidingToken, clearSlidingToken } from './auth';
@@ -147,8 +147,19 @@ export const attempts = {
     list: (quizId: string | number) => api.get(`/quizzes/${quizId}/attempts/`),
     detail: (attemptId: string | number) => api.get(`/attempts/${attemptId}/`),
     submit: (attemptId: string | number, payload: any) => api.post(`/attempts/${attemptId}/submit/`, payload),
-    // 🌟 FINAL FIX: Added the missing start method
     start: (quizId: string | number) => api.post(`/quizzes/${quizId}/attempts/start/`),
+};
+
+// 🌟 FIX APPLIED: Added the missing messages export
+export const messages = {
+    list: () => api.get('/messages/'),
+    send: (payload: any) => api.post('/messages/', payload),
+};
+
+// 🌟 FIX APPLIED: Added the missing notifications export
+export const notifications = {
+    list: () => api.get('/notifications/'),
+    markRead: (id: string | number) => api.post(`/notifications/${id}/mark_read/`),
 };
 
 
