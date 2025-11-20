@@ -1,4 +1,4 @@
-// File: ./lib/api.ts (FINAL, COMPLETE VERSION)
+// File: ./lib/api.ts (FINAL, COMPLETE VERSION with all exports and type fixes)
 
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getSlidingToken, setSlidingToken, clearSlidingToken } from './auth';
@@ -160,19 +160,17 @@ export const notifications = {
     markRead: (id: string | number) => api.post(`/notifications/${id}/mark_read/`),
 };
 
-// 🌟 FINAL FIX: Added the missing password export
 export const password = {
     change: (payload: any) => api.post('/users/me/change_password/', payload), 
 };
 
-// 🌟 FINAL FIX: Added the missing upload export
+// 🌟 FINAL FIX APPLIED HERE: Changed parameter from 'File' to 'FormData'
 export const upload = {
-    file: (file: File) => {
-        const formData = new FormData();
-        formData.append('file', file);
+    file: (formData: FormData) => {
         return api.post('/uploads/file/', formData, {
             headers: {
-                'Content-Type': 'multipart/form-data',
+                // Ensure the Content-Type header is correctly handled for form data
+                'Content-Type': 'multipart/form-data', 
             },
         });
     },
