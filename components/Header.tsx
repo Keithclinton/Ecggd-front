@@ -17,7 +17,7 @@ export default function Header() {
   const isLoggedIn = auth?.access;
 
   return (
-    <header className="bg-white shadow">
+    <header className="bg-white shadow sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         {/* -------- Left: Logo -------- */}
         <div className="flex items-center gap-3">
