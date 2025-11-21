@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { profile, password, upload } from '../lib/api';
+import { profile, password } from '../lib/api';
 import Spinner from '../components/Spinner'
 import RequireAuth from '../components/RequireAuth';
 import { useRouter } from 'next/router';
 import { isProfileComplete } from '../lib/helpers';
+import { getSlidingToken } from '../lib/auth';
 
 interface UserProfileData {
   date_of_birth?: string;
@@ -31,6 +32,8 @@ interface UserProfile {
   profile: UserProfileData;
 }
 
+type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+
 export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -43,7 +46,7 @@ export default function ProfilePage() {
   const [pwForm, setPwForm] = useState({ old_password: '', new_password: '' });
   const [pwSuccess, setPwSuccess] = useState('');
   const [pwError, setPwError] = useState('');
-  const [fileForm, setFileForm] = useState<Record<string, File | null>>({});
+  const [uploadStatus, setUploadStatus] = useState<Record<string, UploadStatus>>({});
 
 
   useEffect(() => {
@@ -56,7 +59,6 @@ export default function ProfilePage() {
         }
         setUser(userData);
         setForm(userData);
-        // If profile is not complete, immediately enter edit mode
         if (!isProfileComplete(userData)) {
           setEditMode(true);
         }
@@ -70,38 +72,32 @@ export default function ProfilePage() {
     setError('');
     setSuccess('');
     try {
-      if (!user || !user.id || !form.profile) {
-        throw new Error('User or profile data not loaded, cannot update.');
+      if (!user || !user.id) {
+        throw new Error('User not loaded, cannot update.');
       }
+  
+      // Create a payload with only the non-file fields.
+      const payload = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        email: form.email,
+        phone: form.phone,
+        timezone: form.timezone,
+        institution: form.institution,
+        profile: {
+          date_of_birth: form.profile?.date_of_birth,
+          gender: form.profile?.gender,
+          address: form.profile?.address,
+          qualification_level: form.profile?.qualification_level,
+          field_of_study: form.profile?.field_of_study,
+          nationality: form.profile?.nationality,
+        },
+      };
 
-      const formData = new FormData();
-      // Append user fields
-      if (form.first_name) formData.append('first_name', form.first_name);
-      if (form.last_name) formData.append('last_name', form.last_name);
-      if (form.email) formData.append('email', form.email);
-      if (form.phone) formData.append('phone', form.phone);
-      if (form.timezone) formData.append('timezone', form.timezone);
-      if (form.institution) formData.append('institution', form.institution);
-
-      // Append profile fields
-      if (form.profile.date_of_birth) formData.append('profile.date_of_birth', form.profile.date_of_birth);
-      if (form.profile.gender) formData.append('profile.gender', form.profile.gender);
-      if (form.profile.address) formData.append('profile.address', form.profile.address);
-      if (form.profile.qualification_level) formData.append('profile.qualification_level', form.profile.qualification_level);
-      if (form.profile.field_of_study) formData.append('profile.field_of_study', form.profile.field_of_study);
-      if (form.profile.nationality) formData.append('profile.nationality', form.profile.nationality);
-      
-      // Append files
-      if (fileForm.profile_picture) formData.append('profile.profile_picture', fileForm.profile_picture);
-      if (fileForm.passport_photo) formData.append('profile.passport_photo', fileForm.passport_photo);
-      if (fileForm.national_id) formData.append('profile.national_id', fileForm.national_id);
-      if (fileForm.passport) formData.append('profile.passport', fileForm.passport);
-      if (fileForm.academic_certificate) formData.append('profile.academic_certificate', fileForm.academic_certificate);
-
-      await profile.updateWithFiles(user.id, formData);
+      await profile.update(user.id, payload);
       setSuccess('Profile updated successfully!');
       setEditMode(false);
-      // Re-fetch user data to update the view
+      // Re-fetch user data to update the view, but don't block
       profile.get().then((res: { data: UserProfile }) => {
         const userData = res.data;
         if (!userData.profile) {
@@ -110,8 +106,10 @@ export default function ProfilePage() {
         setUser(userData);
         setForm(userData);
         // After successful save, follow workflow to dashboard/enrollment
-        const next = (router.query?.next as string) || '/dashboard';
-        router.push(next);
+        if (isProfileComplete(userData)) {
+            const next = (router.query?.next as string) || '/dashboard';
+            router.push(next);
+        }
       });
     } catch (err: any) {
       const msg = err.response?.data ? JSON.stringify(err.response.data) : (err.message || 'Failed to update profile');
@@ -120,20 +118,53 @@ export default function ProfilePage() {
       setSaving(false);
     }
   };
-  
+
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm(f => ({
       ...f,
       profile: {
-        ...f.profile,
+        ...f?.profile,
         [name]: value,
       },
     }));
   };
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
-    const file = e.target.files?.[0] || null;
-    setFileForm(f => ({ ...f, [fieldName]: file }));
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadStatus(s => ({ ...s, [fieldName]: 'uploading' }));
+
+    try {
+        const token = getSlidingToken();
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Bypassing the Next.js proxy and sending directly to the backend
+        const response = await fetch(`http://localhost:8000/api/users/me/upload/${fieldName}/`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            throw new Error('Upload failed');
+        }
+
+        const data = await response.json();
+      
+      // Add a cache-busting query parameter
+      const newUrl = `${data.file_url}?t=${new Date().getTime()}`;
+      // Update the user's profile data with the new file URL
+      setUser(u => u ? ({ ...u, profile: { ...u.profile, [fieldName]: newUrl } }) : null);
+      setForm(f => f ? ({ ...f, profile: { ...f.profile, [fieldName]: newUrl } }) : null);
+      setUploadStatus(s => ({ ...s, [fieldName]: 'success' }));
+    } catch {
+      setUploadStatus(s => ({ ...s, [fieldName]: 'error' }));
+    }
   };
 
   const handleChangePassword = async () => {
@@ -147,6 +178,14 @@ export default function ProfilePage() {
       setPwError('Failed to change password');
     }
   };
+
+  const renderUploadStatus = (fieldName: string) => {
+    const status = uploadStatus[fieldName];
+    if (!status || status === 'idle') return null;
+    if (status === 'uploading') return <span className="ml-2 text-sm text-gray-500">Uploading...</span>;
+    if (status === 'success') return <span className="ml-2 text-sm text-green-600">✓</span>;
+    if (status === 'error') return <span className="ml-2 text-sm text-red-600">Failed</span>;
+  }
 
   return (
     <RequireAuth>
@@ -227,11 +266,12 @@ export default function ProfilePage() {
             <label className="block mb-1">Profile Picture (optional)</label>
             <div className="flex items-center gap-3 mb-2">
               <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'profile_picture')} />
+              {renderUploadStatus('profile_picture')}
             </div>
-            {(fileForm.profile_picture || form.profile?.profile_picture) && (
+            {(form.profile?.profile_picture) && (
               <div className="mb-2">
                 <img
-                  src={fileForm.profile_picture ? URL.createObjectURL(fileForm.profile_picture) : form.profile!.profile_picture}
+                  src={form.profile.profile_picture}
                   alt="Preview"
                   className="w-16 h-16 rounded-full border"
                 />
@@ -240,18 +280,22 @@ export default function ProfilePage() {
             <label className="block mb-1">Passport Photo (optional)</label>
             <div className="flex items-center gap-3 mb-2">
                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'passport_photo')} />
+                {renderUploadStatus('passport_photo')}
             </div>
             <label className="block mb-1">National ID (optional)</label>
             <div className="flex items-center gap-3 mb-2">
                 <input type="file" onChange={(e) => handleFileChange(e, 'national_id')} />
+                {renderUploadStatus('national_id')}
             </div>
             <label className="block mb-1">Passport (optional)</label>
             <div className="flex items-center gap-3 mb-2">
                 <input type="file" onChange={(e) => handleFileChange(e, 'passport')} />
+                {renderUploadStatus('passport')}
             </div>
             <label className="block mb-1">Academic Certificate (optional)</label>
             <div className="flex items-center gap-3 mb-2">
                 <input type="file" onChange={(e) => handleFileChange(e, 'academic_certificate')} />
+                {renderUploadStatus('academic_certificate')}
             </div>
             <button
               className={`px-4 py-2 rounded mr-2 font-semibold transition flex items-center justify-center gap-3 ${saving ? 'bg-green-600 text-white opacity-60 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
@@ -337,7 +381,15 @@ const nationalities = [
     "Irish", "Israeli", "Italian", "Ivorian", "Jamaican", "Japanese", "Jordanian", "Kazakhstani", "Kenyan",
     "Kittian and Nevisian", "Kuwaiti", "Kyrgyz", "Laotian", "Latvian", "Lebanese", "Liberian", "Libyan", "Liechtensteiner",
     "Lithuanian", "Luxembourger", "Macedonian", "Malagasy", "Malawian", "Malaysian", "Maldivan", "Malian", "Maltese",
-
+    "Marshallese", "Mauritanian", "Mauritian", "Mexican", "Micronesian", "Moldovan", "Monacan", "Mongolian", "Moroccan",
+    "Mosotho", "Motswana", "Mozambican", "Namibian", "Nauruan", "Nepalese", "New Zealander", "Nicaraguan", "Nigerian",
+    "Nigerien", "North Korean", "Northern Irish", "Norwegian", "Omani", "Pakistani", "Palauan", "Panamanian",
+    "Papua New Guinean", "Paraguayan", "Peruvian", "Polish", "Portuguese", "Qatari", "Romanian", "Russian", "Rwandan",
+    "Saint Lucian", "Salvadoran", "Samoan", "San Marinese", "Sao Tomean", "Saudi", "Scottish", "Senegalese", "Serbian",
+    "Seychellois", "Sierra Leonean", "Singaporean", "Slovakian", "Slovenian", "Solomon Islander", "Somali", "South African",
+    "South Korean", "Spanish", "Sri Lankan", "Sudanese", "Surinamer", "Swazi", "Swedish", "Swiss", "Syrian", "Taiwanese",
+    "Tajik", "Tanzanian", "Thai", "Togolese", "Tongan", "Trinidadian or Tobagonian", "Tunisian", "Turkish", "Tuvaluan",
+    "Ugandan", "Ukrainian", "Uruguayan", "Uzbekistani", "Venezuelan", "Vietnamese", "Welsh", "Yemenite", "Zambian", "Zimbabwean"
 ];
 
 function NationalitySelector({ value, onChange }: { value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void }) {
@@ -348,4 +400,3 @@ function NationalitySelector({ value, onChange }: { value: string, onChange: (e:
         </select>
     )
 }
-

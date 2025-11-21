@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import api from '../lib/api';
 import Link from 'next/link';
-import { isProfileComplete } from '../lib/helpers';
+import { isProfileComplete, getProfileCompletion } from '../lib/helpers';
 import RequireAuth from '../components/RequireAuth';
 
 export default function Dashboard() {
@@ -13,6 +13,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [user, setUser] = useState<any>(null);
   const [profileIsComplete, setProfileIsComplete] = useState(true);
+  const [profileCompletion, setProfileCompletion] = useState(0);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
@@ -33,6 +34,7 @@ export default function Dashboard() {
         const userData = userRes.data || null;
         setUser(userData);
         setProfileIsComplete(isProfileComplete(userData));
+        setProfileCompletion(getProfileCompletion(userData));
 
         setCourses(coursesRes.data || []);
         const enrollmentsData = enrollmentsRes.data || [];
@@ -66,7 +68,10 @@ export default function Dashboard() {
           {!profileIsComplete && (
             <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-8 rounded-md" role="alert">
               <p className="font-bold">Complete Your Profile</p>
-              <p>Your profile is incomplete. Please update your information to access all features, including course enrollments.</p>
+              <p>Your profile is {profileCompletion}% complete. Please update your information to access all features.</p>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 my-2">
+                <div className="bg-yellow-500 h-2.5 rounded-full" style={{ width: `${profileCompletion}%` }}></div>
+              </div>
               <Link href="/profile" className="font-bold text-yellow-800 hover:underline mt-2 inline-block">
                 Go to Profile
               </Link>
