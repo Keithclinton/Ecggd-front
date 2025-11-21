@@ -104,6 +104,7 @@ export const auth = {
   register: (payload: any) => api.post('/auth/register/', payload),
   logout: () => api.post('/auth/logout/'),
   refresh: () => api.post('/auth/refresh/'),
+  changePassword: (payload: any) => api.post('/auth/change-password/', payload),
 };
 
 export const profile = {

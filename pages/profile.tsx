@@ -1,5 +1,5 @@
 import { useEffect, useState, ReactNode } from 'react';
-import { profile, password } from '../lib/api';
+import { profile, auth } from '../lib/api';
 import Spinner from '../components/Spinner'
 import RequireAuth from '../components/RequireAuth';
 import { useRouter } from 'next/router';
@@ -168,8 +168,8 @@ export default function ProfilePage() {
       // Add a cache-busting query parameter
       const newUrl = `${data.file_url}?t=${new Date().getTime()}`;
       // Update the user's profile data with the new file URL
-      setUser(u => u ? ({ ...u, profile: { ...u.profile, [fieldName]: newUrl } }) : null);
-      setForm(f => f ? ({ ...f, profile: { ...f.profile, [fieldName]: newUrl } }) : null);
+      setUser(u => ({ ...u!, profile: { ...u!.profile, [fieldName]: newUrl } }));
+      setForm(f => ({ ...f!, profile: { ...f!.profile, [fieldName]: newUrl } }));
       setUploadStatus(s => ({ ...s, [fieldName]: 'success' }));
     } catch {
       setUploadStatus(s => ({ ...s, [fieldName]: 'error' }));
@@ -180,7 +180,7 @@ export default function ProfilePage() {
     setPwError('');
     setPwSuccess('');
     try {
-      await password.change(pwForm);
+      await auth.changePassword(pwForm);
       setPwSuccess('Password changed successfully');
       setPwForm({ old_password: '', new_password: '' });
     } catch {
@@ -289,7 +289,7 @@ export default function ProfilePage() {
                 <div>
                     <label className="block mb-1">Profile Picture (optional)</label>
                     <div className="flex items-center gap-3">
-                      <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'profile_picture')} />
+                      <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'profile_picture')} aria-label="Profile Picture" />
                       {renderUploadStatus('profile_picture')}
                     </div>
                     {(form.profile?.profile_picture) && (
@@ -354,28 +354,28 @@ export default function ProfilePage() {
                   <div>
                     <label className="block mb-1">Passport Photo (optional)</label>
                     <div className="flex items-center gap-3">
-                        <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'passport_photo')} />
+                        <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'passport_photo')} aria-label="Passport Photo" />
                         {renderUploadStatus('passport_photo')}
                     </div>
                   </div>
                   <div>
                     <label className="block mb-1">National ID (optional)</label>
                     <div className="flex items-center gap-3">
-                        <input type="file" onChange={(e) => handleFileChange(e, 'national_id')} />
+                        <input type="file" onChange={(e) => handleFileChange(e, 'national_id')} aria-label="National ID" />
                         {renderUploadStatus('national_id')}
                     </div>
                   </div>
                   <div>
                     <label className="block mb-1">Passport (optional)</label>
                     <div className="flex items-center gap-3">
-                        <input type="file" onChange={(e) => handleFileChange(e, 'passport')} />
+                        <input type="file" onChange={(e) => handleFileChange(e, 'passport')} aria-label="Passport" />
                         {renderUploadStatus('passport')}
                     </div>
                   </div>
                   <div>
                     <label className="block mb-1">Academic Certificate (optional)</label>
                     <div className="flex items-center gap-3">
-                        <input type="file" onChange={(e) => handleFileChange(e, 'academic_certificate')} />
+                        <input type="file" onChange={(e) => handleFileChange(e, 'academic_certificate')} aria-label="Academic Certificate" />
                         {renderUploadStatus('academic_certificate')}
                     </div>
                   </div>
@@ -387,8 +387,8 @@ export default function ProfilePage() {
                   className={`px-4 py-2 rounded mr-2 font-semibold transition flex items-center justify-center gap-3 ${saving ? 'bg-green-600 text-white opacity-60 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
                   onClick={handleUpdate}
                   disabled={saving}
-                  aria-busy={saving}
-                  aria-disabled={saving}
+                  aria-busy={String(saving)}
+                  aria-disabled={String(saving)}
                 >
                   {saving ? (
                     <>
@@ -429,7 +429,7 @@ const timezones = [
 
 function TimezoneSelector({ value, onChange }: { value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void }) {
   return (
-    <select className="w-full border rounded p-2" value={value} onChange={onChange}>
+    <select className="w-full border rounded p-2" value={value} onChange={onChange} aria-label="Timezone">
       <option value="">Select timezone</option>
       {timezones.map(tz => <option key={tz} value={tz}>{tz}</option>)}
     </select>
@@ -448,7 +448,7 @@ const educationLevels = [
 
 function EducationLevelSelector({ value, onChange }: { value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void }) {
   return (
-    <select className="w-full border rounded p-2" value={value} onChange={onChange}>
+    <select className="w-full border rounded p-2" value={value} onChange={onChange} aria-label="Education Level">
       <option value="">Select education level</option>
       {educationLevels.map(level => <option key={level} value={level}>{level}</option>)}
     </select>
@@ -482,7 +482,7 @@ const nationalities = [
 
 function NationalitySelector({ value, onChange }: { value: string, onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void }) {
     return (
-        <select className="w-full border rounded p-2" value={value} onChange={onChange}>
+        <select className="w-full border rounded p-2" value={value} onChange={onChange} aria-label="Nationality">
         <option value="">Select nationality</option>
         {nationalities.map(nat => <option key={nat} value={nat.toLowerCase()}>{nat}</option>)}
         </select>
