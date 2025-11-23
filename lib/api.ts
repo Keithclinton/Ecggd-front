@@ -3,6 +3,9 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getSlidingToken, setSlidingToken, clearSlidingToken } from './auth';
 
+// 🚀 CRITICAL FIX: Export the absolute backend URL for direct file uploads (used in profile.tsx)
+export const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/';
+
 // Base for proxy calls (calls /api/proxy/*)
 const baseURL = process.env.NEXT_PUBLIC_API_PROXY_PATH || '/api/proxy';
 
@@ -164,7 +167,7 @@ export const password = {
     change: (payload: any) => api.post('/users/me/change_password/', payload), 
 };
 
-// 🌟 FINAL FIX APPLIED HERE: Changed parameter from 'File' to 'FormData'
+// 🌟 Keeping this 'upload' helper for standard uploads, even though profile.tsx uses direct fetch
 export const upload = {
     file: (formData: FormData) => {
         return api.post('/uploads/file/', formData, {
