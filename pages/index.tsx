@@ -1,10 +1,8 @@
 import Link from 'next/link'
-import Header from '../components/Header'
 
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-xl bg-white rounded-xl shadow-lg p-8 text-center">
           <h1 className="text-4xl font-extrabold text-brand-primary mb-4">Welcome to CCGD LMS</h1>

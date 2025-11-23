@@ -105,15 +105,23 @@ api.interceptors.response.use(
 // --- centralized API exports ---
 
 export const auth = {
-    login: (username: string, password: string) => api.post('/auth/login/', { username, password }),
-    register: (payload: any) => api.post('/auth/register/', payload),
-    logout: () => api.post('/auth/logout/'),
-    refresh: () => api.post('/auth/refresh/'),
+  login: (username: string, password: string) => api.post('/auth/login/', { username, password }),
+  register: (payload: any) => api.post('/auth/register/', payload),
+  logout: () => api.post('/auth/logout/'),
+  refresh: () => api.post('/auth/refresh/'),
+  changePassword: (payload: any) => api.post('/auth/change-password/', payload),
 };
 
 export const profile = {
-    get: () => api.get('/users/me/'),
-    update: (payload: any) => api.put('/users/me/', payload),
+  get: () => api.get('/users/me/'),
+  update: (id: number, payload: any) => api.patch(`/users/${id}/`, payload),
+  uploadProfileFile: (fieldName: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/users/me/upload/${fieldName}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const courses = {
@@ -158,26 +166,11 @@ export const messages = {
     send: (payload: any) => api.post('/messages/', payload),
 };
 
-export const notifications = {
-    list: () => api.get('/notifications/'),
-    markRead: (id: string | number) => api.post(`/notifications/${id}/mark_read/`),
-};
-
-export const password = {
-    change: (payload: any) => api.post('/users/me/change_password/', payload), 
-};
-
-// 🌟 Keeping this 'upload' helper for standard uploads, even though profile.tsx uses direct fetch
 export const upload = {
-    file: (formData: FormData) => {
-        return api.post('/uploads/file/', formData, {
-            headers: {
-                // Ensure the Content-Type header is correctly handled for form data
-                'Content-Type': 'multipart/form-data', 
-            },
-        });
-    },
+  file: (formData: FormData) => api.post('/files/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
-
 
 export default api;
+

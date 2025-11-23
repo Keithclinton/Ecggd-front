@@ -7,7 +7,7 @@ import { userInitials } from "../lib/helpers";
 export default function Header() {
   let auth: any = null;
 
-  // safe hook usage
+  // safe hook
   try {
     auth = useAuth();
   } catch (e) {
@@ -43,7 +43,7 @@ export default function Header() {
             Courses
           </Link>
 
-                    {isLoggedIn && auth ? ( // 👈 ADDED '&& auth' FOR EXTREME SAFETY (Optional)
+          {isLoggedIn && auth ? ( // 👈 ADDED '&& auth' FOR EXTREME SAFETY (Optional)
             <>
               <Link
                 href="/enrollments"

@@ -128,10 +128,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const token = getSlidingTokenLib();
         if (token) {
           setAccess(token);
-          setSlidingTokenLib(token);
 
-          // 🌟 FIX: Using 'token' in loadFromLocal
-          const ur = await fetch('/api/proxy/users/me', { 
+
+          const ur = await fetch('/api/proxy/users/me/', {
+
             headers: { Authorization: `Bearer ${token}` }
           });
           if (ur.ok) setUser(await ur.json());
@@ -141,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     async function refreshSession() {
       try {
-        const resp = await fetch('/api/auth/refresh', { method: 'POST' });
+        const resp = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
 
         if (resp.status === 401) {
           clearSlidingTokenLib();
@@ -159,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAccess(newAccess);
             setSlidingTokenLib(newAccess);
 
-            const ur = await fetch('/api/proxy/users/me', {
+            const ur = await fetch('/api/proxy/users/me/', {
               headers: { Authorization: `Bearer ${newAccess}` }
             });
 
@@ -230,24 +230,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAccess(newAccess);
       setSlidingTokenLib(newAccess);
 
-      const ur = await fetch('/api/proxy/users/me', {
+      // Fetch user profile after getting token
+      const ur = await fetch('/api/proxy/users/me/', {
         headers: { Authorization: `Bearer ${newAccess}` }
       });
-
       if (ur.ok) {
-          let userData = await ur.json();
-          
-          // 🌟 FETCH APPLICATION STATUS AFTER LOGIN
-          const appResp = await fetch('/api/proxy/student-applications/status', {
-              headers: { Authorization: `Bearer ${newAccess}` }
-          });
-
-          if (appResp.ok) {
-              const appData = await appResp.json();
-              userData = { ...userData, is_application_submitted: appData.status === 'submitted' || appData.id };
-          }
-          
-          setUser(userData);
+        setUser(await ur.json());
       }
     } catch (e: any) {
       setUser(null);

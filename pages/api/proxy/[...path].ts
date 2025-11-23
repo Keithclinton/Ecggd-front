@@ -14,11 +14,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const pathArray = Array.isArray(path) ? path : [String(path || '')]
   let backendPath = pathArray.join('/')
 
-  // Ensure trailing slash for auth endpoints
-  if (req.method === 'POST' && ['auth/register', 'auth/login'].includes(backendPath)) {
-    if (!backendPath.endsWith('/')) backendPath += '/'
+  // Ensure trailing slash for all API routes, as required by the backend
+  if (!backendPath.endsWith('/')) {
+    backendPath += '/'
   }
-
+  
   const target = `${backendBase}/api/${backendPath}`
 
   try {
