@@ -151,13 +151,16 @@ export default function ProfilePage() {
         formData.append('file', file);
 
         // Bypassing the Next.js proxy and sending directly to the backend
-        const response = await fetch(`http://localhost:8000/api/users/me/upload/${fieldName}/`, {
-            method: 'POST',
+        const response = await fetch(
+          `https://eccgd-lms-backend-536444006215.africa-south1.run.app/api/users/me/upload/${fieldName}/`,
+          {
+            method: "POST",
             headers: {
-                'Authorization': `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
             },
             body: formData,
-        });
+          }
+        );
 
         if (!response.ok) {
             throw new Error('Upload failed');
