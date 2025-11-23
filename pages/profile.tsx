@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { profile, password, upload } from '../lib/api';
+import { profile, password } from '../lib/api'; // Removed 'upload' as we use direct fetch
 import Spinner from '../components/Spinner'
 import RequireAuth from '../components/RequireAuth';
 import { useRouter } from 'next/router';
+// 🚀 NEW IMPORTS FOR DIRECT UPLOAD
+import { useAuth } from '../components/AuthProvider'; 
+import { BACKEND_URL } from '../lib/api'; // Assuming BACKEND_URL is exported from lib/api or a config file
 
 // 🛑 IMPORTANT: Define the fields required for completion (matching the Guard logic)
 const PROFILE_REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number'];
 
 interface UserProfile {
-  id: number;
-  username: string;
+  id: number;
+  username: string;
   email: string;
   first_name?: string;
   last_name?: string;
@@ -19,11 +22,13 @@ interface UserProfile {
   address?: string;
   education_level?: string;
   profile_picture?: string;
-  [key: string]: any; 
+  [key: string]: any; 
 }
 
 export default function ProfilePage() {
   const router = useRouter();
+// 🚀 FETCH ACCESS TOKEN AND USER CONTEXT
+  const { access } = useAuth();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -35,6 +40,7 @@ export default function ProfilePage() {
   const [pwSuccess, setPwSuccess] = useState('');
   const [pwError, setPwError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(''); // State for file upload errors
 
   useEffect(() => {
     setLoading(true);
@@ -59,6 +65,58 @@ export default function ProfilePage() {
       .finally(() => setLoading(false));
   }, []);
 
+// 🚀 DIRECT FILE UPLOAD HANDLER (Replaces the inline upload logic)
+const handleFileChange = (file: File | null, fieldName: 'profile_picture' | 'passport_photo' = 'profile_picture') => {
+    if (!file || !access) {
+        setUploadError('No file selected or user not logged in.');
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('file', file);
+    
+    setUploading(true); 
+    setUploadError('');
+    setSuccess('');
+    
+    // 🚨 Using BACKEND_URL for direct communication, targeting the specific user endpoint
+    fetch(`${BACKEND_URL}/users/me/upload/${fieldName}/`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${access}`, // CRITICAL: Auth header for direct call
+        },
+        body: fd,
+    })
+    .then(async (response) => {
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+            throw new Error(errorData.detail || `Upload failed with status ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const uploadedUrl = data.url || data.location || data.path || data.file || '';
+
+        if (uploadedUrl) {
+            // 🚀 Cache-busting: Appending a timestamp
+            const cacheBustedUrl = `${uploadedUrl}?t=${Date.now()}`;
+            
+            // Update the form state with the new URL
+            setForm(f => ({ ...f, [fieldName]: cacheBustedUrl }));
+            setSuccess(`${fieldName.replace('_', ' ')} uploaded successfully! Remember to click 'Save'.`);
+        } else {
+            throw new Error('Upload response missing URL.');
+        }
+    })
+    .catch((e) => {
+        const errorMsg = e.message || 'File upload failed.';
+        setUploadError(`Failed to upload ${fieldName.replace('_', ' ')}: ${errorMsg}`);
+    })
+    .finally(() => {
+        setUploading(false);
+    });
+};
+
+
   const handleUpdate = async () => {
     setSaving(true);
     setError('');
@@ -77,10 +135,10 @@ export default function ProfilePage() {
       const isNowComplete = !PROFILE_REQUIRED_FIELDS.some(
         field => !updatedUser[field]
       );
-      
+      
       setUser(updatedUser);
       setForm(updatedUser);
-      
+      
       // 🚀 REDIRECTION LOGIC: Redirect to the next step (Student Application)
       if (isNowComplete) {
         const nextStep = '/student-application'; 
@@ -112,7 +170,7 @@ export default function ProfilePage() {
       setPwError(`Failed to change password: ${apiError}`);
     }
   };
-  
+  
   return (
     <RequireAuth>
       <div className="max-w-xl mx-auto py-8">
@@ -163,32 +221,25 @@ export default function ProfilePage() {
             <input className="w-full border rounded p-2 mb-2" value={form.address || ''} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
             <label className="block mb-1">Education Level (optional)</label>
             <input className="w-full border rounded p-2 mb-2" value={form.education_level || ''} onChange={e => setForm(f => ({ ...f, education_level: e.target.value }))} />
+            
+            {/* 🚀 Profile Picture Upload Field */}
             <label className="block mb-1">Profile Picture (optional)</label>
             <div className="flex items-center gap-3 mb-2">
-              <input type="file" accept="image/*" onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                setUploading(true);
-                try {
-                  const fd = new FormData();
-                  fd.append('file', file);
-                  const res = await upload.file(fd);
-                  const data = res?.data || {};
-                  const url = data.url || data.location || data.path || data.file || '';
-                  if (url) setForm(f => ({ ...f, profile_picture: url }));
-                } catch (e) {
-                  setError('Failed to upload profile picture');
-                } finally {
-                  setUploading(false);
-                }
-              }} />
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={(e) => handleFileChange(e.target.files?.[0] || null)} 
+            />
               {uploading && <span className="text-sm text-gray-600">Uploading...</span>}
             </div>
+            {uploadError && <div className="text-red-600 text-sm mb-2">{uploadError}</div>}
             {form.profile_picture && (
               <div className="mb-2">
                 <img src={form.profile_picture} alt="Preview" className="w-16 h-16 rounded-full border" />
               </div>
             )}
+            {/* End Profile Picture Upload Field */}
+
             <button
               className={`px-4 py-2 rounded mr-2 font-semibold transition flex items-center justify-center gap-3 ${saving ? 'bg-green-600 text-white opacity-60 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
               onClick={handleUpdate}
