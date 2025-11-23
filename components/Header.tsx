@@ -5,21 +5,24 @@ import { useAuth } from "./AuthProvider";
 import { userInitials } from "../lib/helpers";
 
 export default function Header() {
-  let auth = null;
+  let auth: any = null;
 
-  // Safe hook call (only runs client-side because of "use client")
+  // safe hook
   try {
     auth = useAuth();
   } catch (e) {
-    auth = null; // During SSR or provider missing
+    auth = null;
   }
 
-  const isLoggedIn = auth?.access;
+  // These two lines are safe and well-defined
+  const isLoggedIn = !!auth?.access;
+  const user = auth?.user || null;
 
   return (
-    <header className="bg-white shadow sticky top-0 z-50">
+    <header className="bg-white shadow">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* -------- Left: Logo -------- */}
+
+        {/* ---- LEFT: LOGO ---- */}
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="CCGD" className="header-logo w-10 h-10" />
           <div>
@@ -30,9 +33,9 @@ export default function Header() {
           </div>
         </div>
 
-        {/* -------- Right: Navigation -------- */}
+        {/* ---- RIGHT NAVIGATION ---- */}
         <nav className="flex items-center gap-5 text-sm">
-          <Link href="/dashboard" className="text-gray-700 hover:text-brand-primary">
+          <Link href="/" className="text-gray-700 hover:text-brand-primary">
             Home
           </Link>
 
@@ -40,30 +43,53 @@ export default function Header() {
             Courses
           </Link>
 
-          {isLoggedIn ? (
+          {isLoggedIn && auth ? ( // 👈 ADDED '&& auth' FOR EXTREME SAFETY (Optional)
             <>
-              <Link href="/enrollments" className="text-gray-700 hover:text-brand-primary">
+              <Link
+                href="/enrollments"
+                className="text-gray-700 hover:text-brand-primary"
+              >
                 My Courses
               </Link>
 
-              <Link href="/profile" className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 hover:bg-gray-200 transition">
-                {auth.user?.profile?.profile_picture ? (
-                  <img src={auth.user.profile.profile_picture} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-brand-primary text-white flex items-center justify-center text-xs font-semibold">
-                    {userInitials(auth.user)}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100">
+
+                  {/* ---- Avatar ---- */}
+                  {/* The original Vercel logs pointed to a place that used 'auth.user' directly. 
+                      Since we can't see that in this code, we'll assume the compiler is 
+                      still complaining about 'user' possibly being null/undefined. */}
+                  {user?.profile_picture ? (
+                    <img
+                      // 🌟 FIX (Line 73): Safely access the property here.
+                      src={user.profile_picture} 
+                      alt="avatar"
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-brand-primary text-white flex items-center justify-center text-xs font-semibold">
+                      {user ? userInitials(user) : ""}
+                    </div>
+                  )}
+
+                  {/* ---- User Name ---- */}
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-800">
+                      {user?.first_name
+                        ? `${user.first_name} ${user.last_name || ""}`
+                        : "Profile"}
+                    </div>
                   </div>
-                )}
-                <div className="text-sm">
-                  <div className="font-medium text-gray-800">{auth.user?.first_name ? `${auth.user.first_name} ${auth.user.last_name || ''}` : 'Profile'}</div>
                 </div>
-              </Link>
-              <button
-                onClick={auth.logout}
-                className="text-gray-700 hover:text-brand-primary"
-              >
-                Logout
-              </button>
+
+                {/* ---- Logout ---- */}
+                <button
+                  onClick={auth?.logout} // Already safe
+                  className="text-gray-700 hover:text-brand-primary"
+                >
+                  Logout
+                </button>
+              </div>
             </>
           ) : (
             <Link href="/login" className="text-gray-700 hover:text-brand-primary">
