@@ -40,74 +40,6 @@ export const useAuth = () => {
   return ctx;
 };
 
-// --- GUARD CONSTANTS ---
-const PROFILE_REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number'];
-const PROTECTED_PATHS = ['/courses', '/dashboard', '/']; 
-// -----------------------
-
-// 🌟 PROFILE AND APPLICATION GUARD LOGIC HOOK
-const useWorkflowGuard = (user: UserProfile | null, loading: boolean, access: string | null) => {
-  const router = useRouter();
-
-  useEffect(() => {
-    // Only proceed if authenticated and not currently loading
-    if (!loading && access && user) {
-      const isCurrentPageProfile = router.pathname === '/profile';
-      const isCurrentPageApplication = router.pathname === '/student-application';
-      const isProtectedPath = PROTECTED_PATHS.includes(router.pathname);
-
-      // --- 1. Profile Completion Check ---
-      const isProfileIncomplete = PROFILE_REQUIRED_FIELDS.some(
-        field => !user[field]
-      );
-      
-      if (isProfileIncomplete && isProtectedPath && !isCurrentPageProfile) {
-        // Redirect to Profile Setup if incomplete
-        router.replace('/profile');
-        return;
-      }
-      
-      // --- 2. Application Submission Check (Only run if profile is complete) ---
-      const hasApplication = user.is_application_submitted;
-      
-      if (!isProfileIncomplete && !hasApplication && isProtectedPath && !isCurrentPageApplication) {
-        // Redirect to Student Application if missing
-        router.replace('/student-application');
-        return;
-      }
-    }
-  }, [loading, access, user, router.pathname]); 
-};
-
-// 🌟 EXPORTABLE GUARD COMPONENTS (for use in protected pages)
-
-export const ProfileRequiredGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, loading, access } = useAuth();
-    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
-    
-    // Check if the guard should be blocking rendering (profile check)
-    const isProfileIncomplete = user && PROFILE_REQUIRED_FIELDS.some(field => !user[field]);
-    const shouldBlock = loading || (access && isProfileIncomplete && isProtected);
-
-    if (shouldBlock) {
-        return <div className="flex justify-center items-center h-screen">Loading...</div>;
-    }
-    return <>{children}</>;
-};
-
-export const RequireApplication: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, loading, access } = useAuth();
-    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
-    
-    // Check if the guard should be blocking rendering (application check)
-    const isAppMissing = user && !user.is_application_submitted;
-    const shouldBlock = loading || (access && isAppMissing && isProtected);
-
-    if (shouldBlock) {
-        return <div className="flex justify-center items-center h-screen">Loading...</div>;
-    }
-    return <>{children}</>;
-};
 
 // --- Auth Provider Component ---
 
@@ -115,9 +47,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [access, setAccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserProfile | null>(null);
-
-  // 🚀 INTEGRATE THE WORKFLOW GUARD HOOK HERE
-  useWorkflowGuard(user, loading, access);
 
   // INITIAL LOAD + REFRESH
   useEffect(() => {
