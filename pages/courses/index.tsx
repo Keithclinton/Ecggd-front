@@ -117,3 +117,20 @@ export default function CoursesPage() {
     </div>
   )
 }
+
+// 🎯 EXPORTED PAGE: Apply the guards here
+export default function CoursesPage() {
+    return (
+        // Note: I'm assuming 'RequireAuth' is already wrapping this page via _app.tsx or similar
+        // If not, you should add it here too: <RequireAuth> ... </RequireAuth>
+
+        // 1. Enforce Profile Completion First
+        <ProfileRequiredGuard>
+            {/* 2. Enforce Application Submission Second */}
+            <RequireApplication>
+                {/* Only render course list content if both checks pass */}
+                <CourseListContent />
+            </RequireApplication>
+        </ProfileRequiredGuard>
+    )
+}
