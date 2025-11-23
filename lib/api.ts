@@ -166,6 +166,10 @@ export const messages = {
     send: (payload: any) => api.post('/messages/', payload),
 };
 
+export const notifications = {
+    list: () => Promise.resolve({ data: [] }),
+};
+
 export const upload = {
   file: (formData: FormData) => api.post('/files/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

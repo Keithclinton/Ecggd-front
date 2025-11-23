@@ -387,8 +387,8 @@ export default function ProfilePage() {
                   className={`px-4 py-2 rounded mr-2 font-semibold transition flex items-center justify-center gap-3 ${saving ? 'bg-green-600 text-white opacity-60 cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
                   onClick={handleUpdate}
                   disabled={saving}
-                  aria-busy={String(saving)}
-                  aria-disabled={String(saving)}
+                  aria-busy={saving}
+                  aria-disabled={saving}
                 >
                   {saving ? (
                     <>
