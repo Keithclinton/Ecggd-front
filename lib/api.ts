@@ -4,7 +4,7 @@ import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getSlidingToken, setSlidingToken, clearSlidingToken } from './auth';
 
 // 🚀 CRITICAL FIX: Export the absolute backend URL for direct file uploads (used in profile.tsx)
-export const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/';
+export const BACKEND_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/').replace(/\/$/, '');
 
 // Base for proxy calls (calls /api/proxy/*)
 const baseURL = process.env.NEXT_PUBLIC_API_PROXY_PATH || '/api/proxy';

@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import CourseCard from '../../components/CourseCard';
 import api from '../../lib/api';
 import Spinner from '../../components/Spinner';
-import { useAuth, ProfileRequiredGuard, RequireApplication } from '../../components/AuthProvider';
+import { useAuth } from '../../components/AuthProvider';
 import { isProfileComplete } from '../../lib/helpers';
 
 type Course = {

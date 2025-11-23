@@ -1,5 +1,5 @@
 import { useEffect, useState, ReactNode } from 'react';
-import { profile, auth } from '../lib/api';
+import { profile, auth, BACKEND_URL } from '../lib/api';
 import Spinner from '../components/Spinner'
 import RequireAuth from '../components/RequireAuth';
 import { useRouter } from 'next/router';
@@ -152,7 +152,7 @@ export default function ProfilePage() {
 
         // Bypassing the Next.js proxy and sending directly to the backend
         const response = await fetch(
-          `https://eccgd-lms-backend-536444006215.africa-south1.run.app/api/users/me/upload/${fieldName}/`,
+          `${BACKEND_URL}/api/users/me/upload/${fieldName}/`,
           {
             method: "POST",
             headers: {
