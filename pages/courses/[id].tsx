@@ -1,176 +1,145 @@
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/router'
-// 🛑 FIXED: Removed 'profile' import
-import api from '../../lib/api' 
-// 🛑 REMOVED: isProfileComplete is no longer needed
-import Spinner from '../../components/Spinner'
-import { useAuth } from '../../components/AuthProvider'
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
+import api from '../../lib/api';
+import Spinner from '../../components/Spinner';
+import RequireAuth from '../../components/RequireAuth';
+import Link from 'next/link';
+
+// Define the basic structure for Course and Course Content
+type CourseModule = {
+  id: number;
+  title: string;
+  description: string;
+  order: number;
+  lessons: { id: number; title: string; order: number; content: string }[];
+};
 
 type Course = {
-  id: number
-  shortname: string
-  fullname: string
-  summary?: string
-}
+  id: number;
+  shortname: string;
+  fullname: string;
+  summary: string;
+  modules: CourseModule[];
+  // Assume other fields like teacher, duration, etc.
+};
 
-export default function CourseDetail() {
-  const router = useRouter()
-  const { id } = router.query
-  const [course, setCourse] = useState<Course | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const auth = useAuth()
-  const [enrolling, setEnrolling] = useState(false)
-  const [successMsg, setSuccessMsg] = useState('')
+export default function CourseDetailPage() {
+  const router = useRouter();
+  const { id } = router.query;
+  const courseId = id ? parseInt(id as string, 10) : null;
+
+  const [course, setCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isEnrolled, setIsEnrolled] = useState(false); // New state for enrollment status
 
   useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    api.get(`/courses/${id}/`)
-      .then(res => setCourse(res.data))
-      .catch(err => setError(parseError(err)))
-      .finally(() => setLoading(false))
-  }, [id])
+    if (!courseId) return;
 
-  const handleEnroll = async () => {
-    if (!course || !auth) return
-    
-    // 🛑 SIMPLIFIED: Only check if the user is logged in
-    if (!auth.access) {
-        router.push(`/login?next=/courses/${course.id}`)
-        return
-    }
+    async function fetchCourseData() {
+      setLoading(true);
+      setError('');
+      try {
+        // 1. Check Enrollment Status
+        // This API call checks if the currently logged-in user is enrolled in this course ID
+        const enrollmentRes = await api.get(`/enrollments/check/?course=${courseId}`);
+        
+        if (enrollmentRes.status === 200 && enrollmentRes.data.is_enrolled) {
+          setIsEnrolled(true);
 
-    setEnrolling(true)
-    setError('')
-    setSuccessMsg('')
-    try {
-      // 🛑 REMOVED: All profile check logic has been removed
-      
-      await api.post('/enrollments/', {
-        course: course.id,
-        user: auth.user?.id,
-        role: 'student'
-      })
-      setSuccessMsg('Successfully enrolled!')
-    } catch (err: any) {
-      setError(parseError(err))
-    } finally {
-      setEnrolling(false)
+          // 2. Fetch Course Details (only if authorized/enrolled)
+          const courseRes = await api.get(`/courses/${courseId}/`);
+          setCourse(courseRes.data);
+        } else {
+          // If the backend explicitly says 'not enrolled'
+          setIsEnrolled(false);
+          // Redirect to dashboard if the user is not assigned this course
+          router.push('/'); 
+          setError('You are not assigned to this course. Redirecting to dashboard.');
+        }
+
+      } catch (err: any) {
+        // Handle API failure (e.g., 404 if course doesn't exist, 403 if enrollment check fails)
+        const status = err.response?.status;
+        if (status === 404 || status === 403) {
+          setError('Course not found or access denied. Redirecting to dashboard.');
+          router.push('/');
+        } else {
+          setError(err.message || 'Failed to load course data.');
+        }
+      } finally {
+        setLoading(false);
+      }
     }
+
+    fetchCourseData();
+  }, [courseId, router]);
+
+  if (loading) {
+    return (
+      <RequireAuth>
+        <div className="min-h-screen flex justify-center items-center bg-gray-50">
+          <Spinner size={50} />
+        </div>
+      </RequireAuth>
+    );
   }
 
+  // This error check catches errors that happen before or after the enrollment check
+  if (error && !isEnrolled) {
+    return (
+      <RequireAuth>
+        <div className="min-h-screen p-8 text-center bg-red-50 text-red-700">
+          <p className="font-semibold">{error}</p>
+          <Link href="/" className="text-brand-primary underline mt-2 inline-block">Go to Dashboard</Link>
+        </div>
+      </RequireAuth>
+    );
+  }
+
+  if (!course || !isEnrolled) {
+    // Fallback safety net if loading finishes but we still don't have course data or enrollment confirmation
+    return (
+      <RequireAuth>
+        <div className="min-h-screen p-8 text-center text-gray-600 bg-gray-50">
+          <h1 className="text-2xl font-bold mt-10">Access Denied</h1>
+          <p>You must be enrolled in this course to view its content.</p>
+          <Link href="/" className="text-brand-primary underline mt-4 inline-block">Return to My Courses</Link>
+        </div>
+      </RequireAuth>
+    );
+  }
+
+  // Render Course Content
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <main className="flex-1 flex flex-col items-center justify-start px-4 py-12">
-        <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg p-8">
-          {loading && <Spinner size={24} className="mx-auto my-4" />}
-          {error && <div className="text-red-600 text-center py-2 bg-red-50 rounded mb-4">{error}</div>}
-          {successMsg && <div className="text-green-600 text-center py-2 bg-green-50 rounded mb-4">{successMsg}</div>}
+    <RequireAuth>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-4xl mx-auto py-10 px-4">
+          
+          <h1 className="text-4xl font-extrabold text-brand-primary mb-2">{course.fullname}</h1>
+          <p className="text-gray-600 mb-8">{course.summary}</p>
 
-          {course && (
-            <>
-              <h1 className="text-3xl font-bold text-brand-primary mb-2 text-center">{course.fullname}</h1>
-              <p className="text-gray-700 mb-6 text-center">{course.summary}</p>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">Course Modules</h2>
+            
+            {course.modules.sort((a, b) => a.order - b.order).map((module) => (
+              <div key={module.id} className="bg-white p-6 rounded-lg shadow border-t-4 border-brand-secondary">
+                <h3 className="text-xl font-semibold text-gray-700 mb-3">Module {module.order}: {module.title}</h3>
+                <p className="text-gray-500 mb-4">{module.description}</p>
 
-              <div className="flex justify-center mb-6">
-                {auth && auth.access ? (
-                  <button
-                    disabled={enrolling}
-                    onClick={handleEnroll}
-                    className={`px-6 py-3 rounded font-semibold text-lg shadow transition flex items-center justify-center gap-3 ${enrolling ? 'bg-brand-primary text-white opacity-60 cursor-not-allowed' : 'bg-brand-primary text-white hover:bg-brand-primary/90'}`}
-                    aria-busy={enrolling}
-                    aria-disabled={enrolling}
-                  >
-                    {enrolling ? (
-                      <>
-                        <Spinner size={18} className="text-white" />
-                        <span>Enrolling...</span>
-                      </>
-                    ) : (
-                      'Enroll in this course'
-                    )}
-                  </button>
-                ) : (
-                  <button onClick={() => router.push(`/login`)} className="px-6 py-3 rounded border-2 border-brand-primary text-brand-primary font-semibold text-lg shadow hover:bg-brand-primary hover:text-white transition">Login to Enroll</button>
-                )}
+                <ul className="space-y-2 border-l-2 border-gray-200 pl-4">
+                  {module.lessons.sort((a, b) => a.order - b.order).map((lesson) => (
+                    <li key={lesson.id} className="text-gray-600 hover:text-brand-primary transition duration-150 cursor-pointer">
+                      <span className="font-mono text-xs mr-2 text-brand-secondary">L{lesson.order}</span>
+                      {lesson.title}
+                    </li>
+                  ))}
+                </ul>
               </div>
-
-              <h3 className="text-lg font-medium mb-2">Sections & Modules</h3>
-              <CourseSections courseId={course.id} />
-            </>
-          )}
+            ))}
+          </div>
         </div>
-      </main>
-    </div>
-  )
-}
-
-// ---------- Helper Functions ----------
-const parseError = (err: any) =>
-  typeof err === 'string' ? err : JSON.stringify(err?.response?.data || err.message || 'Unknown error')
-
-// ---------- Sections Component ----------
-function CourseSections({ courseId }: { courseId: number }) {
-  const [sections, setSections] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [openSection, setOpenSection] = useState<number | null>(null)
-
-  useEffect(() => {
-    setLoading(true)
-    api.get(`/sections/?course=${courseId}`)
-      .then(res => setSections(res.data || []))
-      .catch(err => setError(parseError(err)))
-      .finally(() => setLoading(false))
-  }, [courseId])
-
-  if (loading) return <Spinner size={20} className="mx-auto my-4" />
-  if (error) return <div className="text-red-600">{error}</div>
-  if (!sections.length) return <div className="text-sm text-gray-600 mt-2">No course details available</div>
-
-  return (
-    <div className="space-y-2">
-      {sections.map(s => (
-        <div key={s.id} className="border rounded">
-          <button
-            onClick={() => setOpenSection(openSection === s.id ? null : s.id)}
-            className="w-full text-left p-3 font-semibold bg-gray-100 hover:bg-gray-200 flex justify-between items-center"
-          >
-            {s.title}
-            <span>{openSection === s.id ? '−' : '+'}</span>
-          </button>
-          {openSection === s.id && <CourseModules sectionId={s.id} />}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ---------- Modules Component ----------
-function CourseModules({ sectionId }: { sectionId: number }) {
-  const [modules, setModules] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    setLoading(true)
-    api.get(`/modules/?section=${sectionId}`)
-      .then(res => setModules(res.data || []))
-      .catch(err => setError(parseError(err)))
-      .finally(() => setLoading(false))
-  }, [sectionId])
-
-  if (loading) return <div className="text-sm text-gray-600 mt-2">Loading modules...</div>
-  if (error) return <div className="text-red-600">{error}</div>
-  if (!modules.length) return <div className="text-sm text-gray-600 mt-2">No modules available</div>
-
-  return (
-    <ul className="mt-2 list-disc list-inside text-sm text-gray-700">
-      {modules.map(m => (
-        <li key={m.id}>{m.name} — <span className="text-xs text-gray-500">{m.module_type}</span></li>
-      ))}
-      
-    </ul>
-  )
+      </div>
+    </RequireAuth>
+  );
 }

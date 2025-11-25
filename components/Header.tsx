@@ -30,7 +30,7 @@ export default function Header() {
             <div className="text-xs text-gray-500">
               College of Career Guidance & Development
             </div>
-          </div>
+        </div>
         </div>
 
         {/* ---- RIGHT NAVIGATION ---- */}
@@ -39,12 +39,10 @@ export default function Header() {
             Home
           </Link>
 
-          {/* REMOVED: Link to /courses */}
-          
           {isLoggedIn && auth ? ( 
             <>
               <Link
-                href="/enrollments"
+                href="/" // Updated link to point to the main dashboard
                 className="text-gray-700 hover:text-brand-primary"
               >
                 My Courses
