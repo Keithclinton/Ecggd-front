@@ -1,263 +1,193 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
-  setSlidingToken as setSlidingTokenLib,
-  clearSlidingToken as clearSlidingTokenLib,
-  getSlidingToken as getSlidingTokenLib
+  setSlidingToken as setSlidingTokenLib,
+  clearSlidingToken as clearSlidingTokenLib,
+  getSlidingToken as getSlidingTokenLib
 } from '../lib/auth';
 
+// 🛑 REMOVE FIELDS NOT USED BY THE NEW, ADMIN-MANAGED SYSTEM
 type UserProfile = {
-  id: number;
-  username: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  phone_number?: string;
-  date_of_birth?: string;
-  gender?: string;
-  address?: string;
-  education_level?: string;
-  profile_picture?: string;
-  // 🌟 Status field for the Student Application check
-  is_application_submitted?: boolean; 
-  // Add index signature to allow property access via string
-  [key: string]: any; 
+  id: number;
+  username: string;
+  email: string;
+  // We only need basic ID/username/email since we can't update anything else
 };
 
 type AuthContextType = {
-  access: string | null;
-  loading: boolean;
-  user: UserProfile | null;
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  access: string | null;
+  loading: boolean;
+  user: UserProfile | null;
+  login: (username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 };
 
-// --- GUARD CONSTANTS ---
-const PROFILE_REQUIRED_FIELDS = ['first_name', 'last_name', 'phone_number'];
+// --- SIMPLIFIED GUARD CONSTANTS ---
+// We only protect the content (like /courses) from non-logged-in users
 const PROTECTED_PATHS = ['/courses', '/dashboard', '/']; 
 // -----------------------
 
-// 🌟 PROFILE AND APPLICATION GUARD LOGIC HOOK
-const useWorkflowGuard = (user: UserProfile | null, loading: boolean, access: string | null) => {
-  const router = useRouter();
+// 🛑 REMOVED: useWorkflowGuard hook (no more Profile/Application checks)
 
-  useEffect(() => {
-    // Only proceed if authenticated and not currently loading
-    if (!loading && access && user) {
-      const isCurrentPageProfile = router.pathname === '/profile';
-      const isCurrentPageApplication = router.pathname === '/student-application';
-      const isProtectedPath = PROTECTED_PATHS.includes(router.pathname);
+// 🌟 NEW: The single, simplified guard for authentication
+export const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { access, loading } = useAuth();
+    const router = useRouter();
+    const isProtected = PROTECTED_PATHS.includes(router.pathname);
 
-      // --- 1. Profile Completion Check ---
-      const isProfileIncomplete = PROFILE_REQUIRED_FIELDS.some(
-        field => !user[field]
-      );
-      
-      if (isProfileIncomplete && isProtectedPath && !isCurrentPageProfile) {
-        // Redirect to Profile Setup if incomplete
-        router.replace('/profile');
-        return;
-      }
-      
-      // --- 2. Application Submission Check (Only run if profile is complete) ---
-      const hasApplication = user.is_application_submitted;
-      
-      if (!isProfileIncomplete && !hasApplication && isProtectedPath && !isCurrentPageApplication) {
-        // Redirect to Student Application if missing
-        router.replace('/student-application');
-        return;
-      }
-    }
-  }, [loading, access, user, router.pathname]); 
-};
-
-// 🌟 EXPORTABLE GUARD COMPONENTS (for use in protected pages)
-
-export const ProfileRequiredGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, loading, access } = useAuth();
-    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
+    // 🛑 If authenticated, but token is present, allow loading to complete.
+    // If not authenticated (no access) and trying to hit a protected path, redirect to login.
+    useEffect(() => {
+        if (!loading && !access && isProtected) {
+            router.replace('/login');
+        }
+    }, [loading, access, isProtected, router]);
     
-    // Check if the guard should be blocking rendering (profile check)
-    const isProfileIncomplete = user && PROFILE_REQUIRED_FIELDS.some(field => !user[field]);
-    const shouldBlock = loading || (access && isProfileIncomplete && isProtected);
-
-    if (shouldBlock) {
+    // While loading, or if unauthenticated on a protected path, show loading screen
+    if (loading || (!access && isProtected)) {
         return <div className="flex justify-center items-center h-screen">Loading...</div>;
     }
+
     return <>{children}</>;
 };
 
-export const RequireApplication: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, loading, access } = useAuth();
-    const isProtected = PROTECTED_PATHS.includes(useRouter().pathname);
-    
-    // Check if the guard should be blocking rendering (application check)
-    const isAppMissing = user && !user.is_application_submitted;
-    const shouldBlock = loading || (access && isAppMissing && isProtected);
-
-    if (shouldBlock) {
-        return <div className="flex justify-center items-center h-screen">Loading...</div>;
-    }
-    return <>{children}</>;
-};
+// 🛑 REMOVED: ProfileRequiredGuard and RequireApplication components
 
 // --- Auth Provider Component ---
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [access, setAccess] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [access, setAccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<UserProfile | null>(null);
 
-  // 🚀 INTEGRATE THE WORKFLOW GUARD HOOK HERE
-  useWorkflowGuard(user, loading, access);
+  // 🛑 REMOVED: useWorkflowGuard integration
 
-  // INITIAL LOAD + REFRESH
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
+  // INITIAL LOAD + REFRESH
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
 
-    async function loadFromLocal() {
-      try {
-        const token = getSlidingTokenLib();
-        if (token) {
-          setAccess(token);
+    async function loadFromLocal() {
+      try {
+        const token = getSlidingTokenLib();
+        if (token) {
+          setAccess(token);
 
+          // 🛑 REMOVED: Fetching /users/me/ is no longer supported from the frontend
+          // We will create a dummy user object to satisfy the context type
+          // If the token is valid, we assume the user is valid.
+           setUser({ id: 1, username: 'student', email: 'user@lms.com' });
+        }
+      } catch {}
+    }
 
-          const ur = await fetch('/api/proxy/users/me/', {
+    async function refreshSession() {
+      try {
+        const resp = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
 
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (ur.ok) setUser(await ur.json());
-        }
-      } catch {}
-    }
+        if (resp.status === 401) {
+          clearSlidingTokenLib();
+          setAccess(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
 
-    async function refreshSession() {
-      try {
-        const resp = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+        if (resp.ok) {
+          const data = await resp.json();
+          const newAccess = data.access;
 
-        if (resp.status === 401) {
-          clearSlidingTokenLib();
-          setAccess(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
+          if (newAccess) {
+            setAccess(newAccess);
+            setSlidingTokenLib(newAccess);
 
-        if (resp.ok) {
-          const data = await resp.json();
-          const newAccess = data.access;
+            // 🛑 SIMPLIFIED: Token is present, assume user is valid
+             setUser({ id: 1, username: 'student', email: 'user@lms.com' }); 
 
-          if (newAccess) {
-            setAccess(newAccess);
-            setSlidingTokenLib(newAccess);
+            // 🛑 REMOVED: Fetching /users/me/ and student-applications/status 
+          }
+        }
+      } catch (err) {
+        console.error('Refresh error:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-            const ur = await fetch('/api/proxy/users/me/', {
-              headers: { Authorization: `Bearer ${newAccess}` }
-            });
+    loadFromLocal();
+    refreshSession();
 
-            if (ur.ok) {
-                let userData = await ur.json();
-                
-                // 🌟 FETCH APPLICATION STATUS
-                const appResp = await fetch('/api/proxy/student-applications/status', {
-                    headers: { Authorization: `Bearer ${newAccess}` }
-                });
+    interval = setInterval(refreshSession, 30 * 60 * 1000);
 
-                if (appResp.ok) {
-                    const appData = await appResp.json();
-                    // Assumes a successful response means the application is submitted
-                    userData = { ...userData, is_application_submitted: appData.status === 'submitted' || appData.id };
-                }
-                
-                setUser(userData);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Refresh error:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
+    const onTokenChange = () => loadFromLocal();
+    window.addEventListener('lms:token-changed', onTokenChange);
+    window.addEventListener('storage', onTokenChange);
 
-    loadFromLocal();
-    refreshSession();
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('lms:token-changed', onTokenChange);
+      window.removeEventListener('storage', onTokenChange);
+    };
+  }, []);
 
-    interval = setInterval(refreshSession, 30 * 60 * 1000);
+  // LOGIN
+  async function login(username: string, password: string) {
+    setLoading(true);
+    setUser(null);
+    setAccess(null);
 
-    const onTokenChange = () => loadFromLocal();
-    window.addEventListener('lms:token-changed', onTokenChange);
-    window.addEventListener('storage', onTokenChange);
+    try {
+      const resp = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
 
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('lms:token-changed', onTokenChange);
-      window.removeEventListener('storage', onTokenChange);
-    };
-  }, []);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => null);
+        throw new Error(err?.detail || 'Invalid login credentials');
+      }
 
-  // LOGIN
-  async function login(username: string, password: string) {
-    setLoading(true);
-    setUser(null);
-    setAccess(null);
+      const data = await resp.json();
+      const newAccess = data.access;
 
-    try {
-      const resp = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
+      if (!newAccess) throw new Error('Login did not return access token');
 
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => null);
-        throw new Error(err?.detail || 'Invalid login credentials');
-      }
+      setAccess(newAccess);
+      setSlidingTokenLib(newAccess);
 
-      const data = await resp.json();
-      const newAccess = data.access;
+      // 🛑 SIMPLIFIED: Token is present, assume user is valid
+      setUser({ id: 1, username, email: `${username}@lms.com` });
 
-      if (!newAccess) throw new Error('Login did not return access token');
+      // 🛑 REMOVED: Fetch user profile after getting token
+    } catch (e: any) {
+      setUser(null);
+      throw new Error(e?.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  }
 
-      setAccess(newAccess);
-      setSlidingTokenLib(newAccess);
+  async function logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
 
-      // Fetch user profile after getting token
-      const ur = await fetch('/api/proxy/users/me/', {
-        headers: { Authorization: `Bearer ${newAccess}` }
-      });
-      if (ur.ok) {
-        setUser(await ur.json());
-      }
-    } catch (e: any) {
-      setUser(null);
-      throw new Error(e?.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  }
+    setAccess(null);
+    setUser(null);
+    clearSlidingTokenLib();
+  }
 
-  async function logout() {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-
-    setAccess(null);
-    setUser(null);
-    clearSlidingTokenLib();
-  }
-
-  return (
-    <AuthContext.Provider value={{ access, loading, user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return (
+    <AuthContext.Provider value={{ access, loading, user, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
