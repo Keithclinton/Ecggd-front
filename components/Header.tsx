@@ -14,7 +14,7 @@ export default function Header() {
     auth = null;
   }
 
-  // These two lines are safe and well-defined
+  // These two lines are safe and well
   const isLoggedIn = !!auth?.access;
   const user = auth?.user || null;
 
