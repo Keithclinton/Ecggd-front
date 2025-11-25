@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import api from '../../lib/api';
 import Spinner from '../../components/Spinner';
@@ -6,12 +6,19 @@ import RequireAuth from '../../components/RequireAuth';
 import Link from 'next/link';
 
 // Define the basic structure for Course and Course Content
+type Lesson = {
+  id: number;
+  title: string;
+  order: number;
+  content: string; // Assuming this contains HTML content
+};
+
 type CourseModule = {
   id: number;
   title: string;
   description: string;
   order: number;
-  lessons: { id: number; title: string; order: number; content: string }[];
+  lessons: Lesson[];
 };
 
 type Course = {
@@ -23,6 +30,45 @@ type Course = {
   // Assume other fields like teacher, duration, etc.
 };
 
+// --- Helper component for Module/Lesson Navigation ---
+const CourseNavigation = ({ course, activeLessonId, onLessonClick }: {
+  course: Course;
+  activeLessonId: number | null;
+  onLessonClick: (lesson: Lesson) => void;
+}) => (
+  <nav className="space-y-6">
+    <h2 className="text-xl font-bold text-gray-800 border-b pb-2 mb-4 sticky top-0 bg-white z-10">
+      Course Outline
+    </h2>
+    {course.modules.sort((a, b) => a.order - b.order).map((module) => (
+      <div key={module.id} className="group">
+        <h3 className="text-lg font-semibold text-gray-700 p-2 rounded-md bg-gray-100/50 group-hover:bg-gray-100 transition duration-150 cursor-pointer">
+          Module {module.order}: {module.title}
+        </h3>
+        <ul className="mt-2 space-y-1 pl-4 border-l border-gray-200">
+          {module.lessons.sort((a, b) => a.order - b.order).map((lesson) => {
+            const isActive = activeLessonId === lesson.id;
+            return (
+              <li 
+                key={lesson.id} 
+                onClick={() => onLessonClick(lesson)}
+                className={`p-2 rounded-md text-sm cursor-pointer transition duration-150 ${
+                  isActive 
+                    ? 'bg-brand-secondary text-white font-medium shadow-md' 
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-brand-primary'
+                }`}
+              >
+                <span className="mr-2 font-mono text-xs opacity-70">L{lesson.order}</span>
+                {lesson.title}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    ))}
+  </nav>
+);
+
 export default function CourseDetailPage() {
   const router = useRouter();
   const { id } = router.query;
@@ -31,7 +77,48 @@ export default function CourseDetailPage() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isEnrolled, setIsEnrolled] = useState(false); // New state for enrollment status
+  const [isEnrolled, setIsEnrolled] = useState(false);
+
+  // State for the content being displayed in the main area
+  const [activeContent, setActiveContent] = useState<{
+    type: 'summary' | 'lesson';
+    title: string;
+    content: string;
+    lessonId: number | null;
+  }>({
+    type: 'summary',
+    title: '',
+    content: '',
+    lessonId: null,
+  });
+
+  // Function to find the first lesson and set it as active content
+  const findAndSetInitialContent = useMemo(() => {
+    return (fetchedCourse: Course) => {
+      // Sort modules and lessons to find the very first one
+      const sortedModules = fetchedCourse.modules.sort((a, b) => a.order - b.order);
+      const firstModule = sortedModules[0];
+      
+      if (firstModule && firstModule.lessons.length > 0) {
+        const firstLesson = firstModule.lessons.sort((a, b) => a.order - b.order)[0];
+        setActiveContent({
+          type: 'lesson',
+          title: firstLesson.title,
+          content: firstLesson.content,
+          lessonId: firstLesson.id,
+        });
+      } else {
+        // Fallback to course summary if no lessons exist
+        setActiveContent({
+          type: 'summary',
+          title: `${fetchedCourse.fullname} - Course Overview`,
+          content: fetchedCourse.summary,
+          lessonId: null,
+        });
+      }
+    };
+  }, []);
+
 
   useEffect(() => {
     if (!courseId) return;
@@ -40,7 +127,7 @@ export default function CourseDetailPage() {
       setLoading(true);
       setError('');
       try {
-        // 1. Check Enrollment Status
+        // 1. CRITICAL: Check Enrollment Status
         // This API call checks if the currently logged-in user is enrolled in this course ID
         const enrollmentRes = await api.get(`/enrollments/check/?course=${courseId}`);
         
@@ -49,17 +136,21 @@ export default function CourseDetailPage() {
 
           // 2. Fetch Course Details (only if authorized/enrolled)
           const courseRes = await api.get(`/courses/${courseId}/`);
-          setCourse(courseRes.data);
+          const fetchedCourse = courseRes.data as Course;
+          
+          setCourse(fetchedCourse);
+          
+          // Set the initial active content (first lesson or summary)
+          findAndSetInitialContent(fetchedCourse);
+          
         } else {
-          // If the backend explicitly says 'not enrolled'
+          // Redirect if not enrolled
           setIsEnrolled(false);
-          // Redirect to dashboard if the user is not assigned this course
           router.push('/'); 
           setError('You are not assigned to this course. Redirecting to dashboard.');
         }
 
       } catch (err: any) {
-        // Handle API failure (e.g., 404 if course doesn't exist, 403 if enrollment check fails)
         const status = err.response?.status;
         if (status === 404 || status === 403) {
           setError('Course not found or access denied. Redirecting to dashboard.');
@@ -73,7 +164,30 @@ export default function CourseDetailPage() {
     }
 
     fetchCourseData();
-  }, [courseId, router]);
+  }, [courseId, router, findAndSetInitialContent]); // Added findAndSetInitialContent to dependencies
+
+  // Handler for clicking a lesson in the navigation
+  const handleLessonClick = (lesson: Lesson) => {
+    setActiveContent({
+      type: 'lesson',
+      title: lesson.title,
+      content: lesson.content,
+      lessonId: lesson.id,
+    });
+  };
+  
+  // Handler for clicking the course title to show the summary
+  const handleSummaryClick = () => {
+    if (course) {
+      setActiveContent({
+        type: 'summary',
+        title: `${course.fullname} - Course Overview`,
+        content: course.summary,
+        lessonId: null,
+      });
+    }
+  };
+
 
   if (loading) {
     return (
@@ -85,7 +199,7 @@ export default function CourseDetailPage() {
     );
   }
 
-  // This error check catches errors that happen before or after the enrollment check
+  // Enrollment/Error handling remains the same (redirects to '/')
   if (error && !isEnrolled) {
     return (
       <RequireAuth>
@@ -96,9 +210,8 @@ export default function CourseDetailPage() {
       </RequireAuth>
     );
   }
-
   if (!course || !isEnrolled) {
-    // Fallback safety net if loading finishes but we still don't have course data or enrollment confirmation
+    // This block should rarely be hit due to router.push above, but serves as a final guard
     return (
       <RequireAuth>
         <div className="min-h-screen p-8 text-center text-gray-600 bg-gray-50">
@@ -110,35 +223,62 @@ export default function CourseDetailPage() {
     );
   }
 
-  // Render Course Content
+  // Render Course Content with dual-pane layout
   return (
     <RequireAuth>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto py-10 px-4">
-          
-          <h1 className="text-4xl font-extrabold text-brand-primary mb-2">{course.fullname}</h1>
-          <p className="text-gray-600 mb-8">{course.summary}</p>
-
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">Course Modules</h2>
-            
-            {course.modules.sort((a, b) => a.order - b.order).map((module) => (
-              <div key={module.id} className="bg-white p-6 rounded-lg shadow border-t-4 border-brand-secondary">
-                <h3 className="text-xl font-semibold text-gray-700 mb-3">Module {module.order}: {module.title}</h3>
-                <p className="text-gray-500 mb-4">{module.description}</p>
-
-                <ul className="space-y-2 border-l-2 border-gray-200 pl-4">
-                  {module.lessons.sort((a, b) => a.order - b.order).map((lesson) => (
-                    <li key={lesson.id} className="text-gray-600 hover:text-brand-primary transition duration-150 cursor-pointer">
-                      <span className="font-mono text-xs mr-2 text-brand-secondary">L{lesson.order}</span>
-                      {lesson.title}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+      {/* Set the height of the container to prevent footer from being hidden by sticky nav */}
+      <div className="flex min-h-[calc(100vh-4rem)] bg-gray-50">
+        
+        {/* Left Panel: Course Navigation (Sticky) */}
+        <div className="w-1/4 min-w-[300px] max-w-[400px] bg-white shadow-xl p-6 sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto hidden md:block">
+          <h1 
+            className="text-2xl font-extrabold text-brand-primary cursor-pointer hover:opacity-80 transition mb-6"
+            onClick={handleSummaryClick}
+          >
+            {course.shortname || course.fullname}
+          </h1>
+          <CourseNavigation 
+            course={course} 
+            activeLessonId={activeContent.lessonId} 
+            onLessonClick={handleLessonClick} 
+          />
         </div>
+
+        {/* Right Panel: Main Content Area */}
+        <main className="flex-grow p-4 md:p-10 max-w-full lg:max-w-[75%]">
+          <div className="bg-white p-6 md:p-10 rounded-xl shadow-lg border border-gray-100">
+            
+            <Link href="/" className="text-sm font-medium text-brand-secondary hover:text-brand-primary transition mb-4 block">
+              &larr; Back to My Courses
+            </Link>
+
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 border-b pb-2">
+              {activeContent.title}
+            </h2>
+            
+            {activeContent.type === 'summary' && (
+              <div className="text-gray-600 space-y-4 prose max-w-none">
+                <p className="italic text-lg text-brand-secondary">Course Summary</p>
+                {/* Display summary as paragraphs */}
+                {activeContent.content.split('\n').map((paragraph, index) => (
+                  <p key={index}>{paragraph}</p>
+                ))}
+              </div>
+            )}
+
+            {activeContent.type === 'lesson' && (
+              <div className="text-gray-700 space-y-6 prose max-w-none">
+                <p className="text-sm text-gray-500 font-medium">
+                  Lesson: {activeContent.title}
+                </p>
+                {/*                   IMPORTANT: This line assumes lesson.content is sanitized HTML from the backend.
+                  In a real application, you must ensure the content is safe before using dangerouslySetInnerHTML.
+                */}
+                <div dangerouslySetInnerHTML={{ __html: activeContent.content }} />
+              </div>
+            )}
+          </div>
+        </main>
       </div>
     </RequireAuth>
   );
